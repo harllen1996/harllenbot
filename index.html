@@ -1607,6 +1607,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
       if (t) parts.push({ text: t });
       if (last && last.role === m.role) last.parts = last.parts.concat(parts); else out.push({ role: m.role, parts: parts });
     });
+    while (out.length && out[0].role === "model") out.shift();
     return out;
   }
   var CALL = /\[\[CHAMAR:\s*([^\]\s]+)\s*\]\]/;
@@ -2775,7 +2776,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     gdSilent().then(function (ok) { if (ok) syncNow(false); });
   });
   /* auto-atualização: se sair versão nova, recarrega sozinho (uma vez) */
-  var APP_V = "20261008-25";
+  var APP_V = "20261008-26";
   setTimeout(function () {
     fetch(location.pathname, { cache: "no-store" }).then(function (r) { return r.text(); }).then(function (t) {
       var m = t.match(/var APP_V = "([^"]+)"/);
