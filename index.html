@@ -2224,26 +2224,58 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   };
 
   /* Google Drive (token só na memória) */
-  var GD = { token: "", exp: 0, tc: null, cid: "", onTok: null, onErr: null, next: "", q: "", files: {} };
+  var GD = { token: "", exp: 0, tc: null, cid: "", onTok: null, onErr: null, next: "", q: "", files: {}, waiters: [], firing: false };
   $("l-gcid").onchange = function () { var v = this.value.trim(); if (v !== S.gdriveClientId) { S.gdriveClientId = v; GD.token = ""; GD.tc = null; saveSettings(); if (v) { toast("Client ID salvo"); loadScript(GIS_URL).catch(function () {}); } } };
+  /* Fila de pedidos de token do Google (B-02): um unico requestAccessToken em voo;
+     quem chega durante um pedido em andamento entra na fila e recebe o mesmo resultado,
+     em vez de sobrescrever GD.onTok/GD.onErr e deixar o primeiro pedido pendurado. */
+  function gdEnsureTC(cid) {
+    var oa = window.google && google.accounts && google.accounts.oauth2;
+    if (!oa) return null;
+    if (!GD.tc || GD.cid !== cid) {
+      GD.cid = cid;
+      GD.tc = oa.initTokenClient({ client_id: cid, scope: GD_SCOPE, callback: function (r) { gdFlushTok(r, false); }, error_callback: function (e) { gdFlushTok(e, true); } });
+    }
+    return GD.tc;
+  }
+  function gdFlushTok(v, isErr) {
+    GD.firing = false;
+    var ws = GD.waiters; GD.waiters = [];
+    /* compat: um GD.onTok/GD.onErr avulso (sem waiter) ainda funciona */
+    if (!ws.length) { var cb = isErr ? GD.onErr : GD.onTok; if (cb) { try { cb(v); } catch (e) {} } return; }
+    GD.onTok = null; GD.onErr = null;
+    for (var i = 0; i < ws.length; i++) { var w = ws[i]; if (w.to) clearTimeout(w.to); try { if (isErr) w.onErr(v); else w.onTok(v); } catch (e) {} }
+  }
+  function gdEnqueue(onTok, onErr) {
+    var w = { onTok: onTok, onErr: onErr, to: null };
+    GD.waiters.push(w);
+    return { waiter: w, first: GD.waiters.length === 1 && !GD.firing };
+  }
+  function gdDequeue(w) {
+    var i = GD.waiters.indexOf(w);
+    if (i >= 0) GD.waiters.splice(i, 1);
+  }
+  function gdFire(promptOpts) {
+    GD.firing = true;
+    try { GD.tc.requestAccessToken(promptOpts); }
+    catch (e) { gdFlushTok(e, true); }
+  }
   function gdToken() {
     if (GD.token && Date.now() < GD.exp - 60000) return Promise.resolve(GD.token);
     var cid = (S.gdriveClientId || "").trim();
     if (!cid) return Promise.reject(new Error("Cole o Google OAuth Client ID primeiro."));
     return loadScript(GIS_URL).then(function () {
       return new Promise(function (res, rej) {
-        var oa = window.google && google.accounts && google.accounts.oauth2;
-        if (!oa) { rej(new Error("Não consegui carregar o login do Google.")); return; }
-        if (!GD.tc || GD.cid !== cid) {
-          GD.cid = cid;
-          GD.tc = oa.initTokenClient({ client_id: cid, scope: GD_SCOPE, callback: function (r) { if (GD.onTok) GD.onTok(r); }, error_callback: function (e) { if (GD.onErr) GD.onErr(e); } });
-        }
-        GD.onTok = function (r) {
-          if (r && r.access_token) { GD.token = r.access_token; GD.exp = Date.now() + (+r.expires_in || 3600) * 1000; res(GD.token); }
-          else rej(new Error(r && r.error === "access_denied" ? "Acesso ao Drive negado." : "O Google não liberou o acesso (" + ((r && r.error) || "erro") + ")."));
-        };
-        GD.onErr = function (e) { rej(new Error(e && e.type === "popup_failed_to_open" ? "O navegador bloqueou a janela do Google. Toque de novo em Conectar." : "Login do Google cancelado.")); };
-        try { GD.tc.requestAccessToken(GD.token ? { prompt: "" } : {}); } catch (e) { rej(new Error("Client ID inválido?")); }
+        var tc = gdEnsureTC(cid);
+        if (!tc) { rej(new Error("Não consegui carregar o login do Google.")); return; }
+        var q = gdEnqueue(
+          function (r) {
+            if (r && r.access_token) { GD.token = r.access_token; GD.exp = Date.now() + (+r.expires_in || 3600) * 1000; res(GD.token); }
+            else rej(new Error(r && r.error === "access_denied" ? "Acesso ao Drive negado." : "O Google não liberou o acesso (" + ((r && r.error) || "erro") + ")."));
+          },
+          function (e) { rej(new Error(e && e.type === "popup_failed_to_open" ? "O navegador bloqueou a janela do Google. Toque de novo em Conectar." : "Login do Google cancelado.")); }
+        );
+        if (q.first) gdFire(GD.token ? { prompt: "" } : {});
       });
     });
   }
@@ -2652,20 +2684,23 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     el.appendChild(t); el.appendChild(w); document.body.appendChild(el);
   }
   function syncWanted() { return S.syncOn && (S.gdriveClientId || "").trim() && S.syncTs > 0; }
-  /* tenta reconectar ao Google sem mostrar nada; se o Google exigir toque, volta false */
+  /* tenta reconectar ao Google sem mostrar nada; se o Google exigir toque, volta false.
+     Entra na MESMA fila do gdToken (B-02): se ja houver um login manual em andamento,
+     apenas aguarda o resultado dele em vez de sobrescrever o callback. */
   function gdSilent() {
     var cid = (S.gdriveClientId || "").trim();
     if (!cid || syncTokenOk()) return Promise.resolve(false);
     return loadScript(GIS_URL).then(function () {
       return new Promise(function (res) {
-        var oa = window.google && google.accounts && google.accounts.oauth2;
-        if (!oa) { res(false); return; }
-        if (!GD.tc || GD.cid !== cid) { GD.cid = cid; GD.tc = oa.initTokenClient({ client_id: cid, scope: GD_SCOPE, callback: function (r) { if (GD.onTok) GD.onTok(r); }, error_callback: function (e) { if (GD.onErr) GD.onErr(e); } }); }
+        var tc = gdEnsureTC(cid);
+        if (!tc) { res(false); return; }
         var done = false;
-        var to = setTimeout(function () { if (!done) { done = true; res(false); } }, 6000);
-        GD.onTok = function (r) { if (done) return; done = true; clearTimeout(to); if (r && r.access_token) { GD.token = r.access_token; GD.exp = Date.now() + (+r.expires_in || 3600) * 1000; renderGDState(); res(true); } else res(false); };
-        GD.onErr = function () { if (done) return; done = true; clearTimeout(to); res(false); };
-        try { GD.tc.requestAccessToken({ prompt: "" }); } catch (e) { if (!done) { done = true; clearTimeout(to); res(false); } }
+        var q = gdEnqueue(
+          function (r) { if (done) return; done = true; if (r && r.access_token) { GD.token = r.access_token; GD.exp = Date.now() + (+r.expires_in || 3600) * 1000; renderGDState(); res(true); } else res(false); },
+          function () { if (done) return; done = true; res(false); }
+        );
+        q.waiter.to = setTimeout(function () { if (done) return; done = true; gdDequeue(q.waiter); res(false); }, 6000);
+        if (q.first) gdFire({ prompt: "" });
       });
     }).catch(function () { return false; });
   }
@@ -2682,7 +2717,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     gdSilent().then(function (ok) { if (ok) syncNow(false); });
   });
   /* auto-atualização: se sair versão nova, recarrega sozinho (uma vez) */
-  var APP_V = "20261008-14";
+  var APP_V = "20261008-15";
   setTimeout(function () {
     fetch(location.pathname, { cache: "no-store" }).then(function (r) { return r.text(); }).then(function (t) {
       var m = t.match(/var APP_V = "([^"]+)"/);
