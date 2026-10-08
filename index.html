@@ -1842,7 +1842,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
       return '<button type="button" role="menuitem" class="x-popi' + (!grp && x.id === S.sel ? " is-on" : "") + '" data-id="' + esc(x.id) + '"><span class="x-av">' + esc(x.av) + "</span><span>" + (x.id === "main" ? "Automático (" + esc(x.name) + " decide)" : esc(x.name) + " <small>@" + esc(x.id) + " · " + esc(x.desc || "") + "</small>") + "</span></button>";
     }).join("") + '<button type="button" role="menuitem" class="x-popi x-grp"><span class="x-av">👥</span><span>Mesa-redonda <small>vários bots discutindo juntos</small></span></button>';
   }
-  function selectBot(id) { if (cur() && cur().group) { pop.hidden = true; toast("Nesta mesa-redonda todos respondem juntos. Pra falar com um bot só, crie uma conversa nova."); return; } S.sel = botById(id).id; saveSettings(); pop.hidden = true; render(); toast("Falando com " + botById(S.sel).name); }
+  function selectBot(id) { if (busy) { pop.hidden = true; toast("Aguarde a resposta terminar pra trocar de bot."); return; } if (cur() && cur().group) { pop.hidden = true; toast("Nesta mesa-redonda todos respondem juntos. Pra falar com um bot só, crie uma conversa nova."); return; } S.sel = botById(id).id; saveSettings(); pop.hidden = true; render(); toast("Falando com " + botById(S.sel).name); }
   $("b-bot").onclick = function (e) { e.stopPropagation(); pop.hidden = !pop.hidden; };
   pop.onclick = function (e) { var b = e.target.closest("button"); if (!b) return; if (b.classList.contains("x-grp")) { pop.hidden = true; openGroup(); return; } selectBot(b.dataset.id); };
   document.addEventListener("click", function (e) { if (!pop.hidden && !pop.contains(e.target)) pop.hidden = true; });
@@ -2776,7 +2776,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     gdSilent().then(function (ok) { if (ok) syncNow(false); });
   });
   /* auto-atualização: se sair versão nova, recarrega sozinho (uma vez) */
-  var APP_V = "20261008-26";
+  var APP_V = "20261008-27";
   setTimeout(function () {
     fetch(location.pathname, { cache: "no-store" }).then(function (r) { return r.text(); }).then(function (t) {
       var m = t.match(/var APP_V = "([^"]+)"/);
