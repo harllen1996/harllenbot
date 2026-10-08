@@ -1419,6 +1419,15 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   var HASH_KEY = "";
   try { var hm = /(?:^#|&)k=([^&]*)/.exec(location.hash || ""); if (hm && hm[1]) HASH_KEY = decodeURIComponent(hm[1]).trim(); } catch (e) { HASH_KEY = ""; }
   var KEY = HASH_KEY || sget("hb_key", "") || "";
+  if (HASH_KEY) {
+    try { sset("hb_key", HASH_KEY); } catch (e) {}
+    try {
+      if (window.history && typeof history.replaceState === "function") {
+        var restHash = (location.hash || "").replace(/^#/, "").split("&").filter(function (p) { return p && !/^k=/.test(p); }).join("&");
+        history.replaceState(null, "", location.pathname + (location.search || "") + (restHash ? "#" + restHash : ""));
+      }
+    } catch (e) {}
+  }
   var justSaved = false;
   var LINK_BASE = location.origin + location.pathname + "#k=";
   function showKeyLink(box) {
@@ -2745,7 +2754,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     gdSilent().then(function (ok) { if (ok) syncNow(false); });
   });
   /* auto-atualização: se sair versão nova, recarrega sozinho (uma vez) */
-  var APP_V = "20261008-19";
+  var APP_V = "20261008-20";
   setTimeout(function () {
     fetch(location.pathname, { cache: "no-store" }).then(function (r) { return r.text(); }).then(function (t) {
       var m = t.match(/var APP_V = "([^"]+)"/);
