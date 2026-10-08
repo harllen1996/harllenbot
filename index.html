@@ -1015,6 +1015,12 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
       .x-swatch--custom { background: conic-gradient(#ff5f57, #febc2e, #28c840, #22d3ee, #7c5cff, #ec4899, #ff5f57); overflow: hidden; }
       .x-swatch--custom input { position: absolute; inset: -8px; width: 54px; height: 54px; opacity: 0; cursor: pointer; }
 
+      /* editor de bot: emojis rapidos e cor */
+      .x-emos { display: flex; flex-wrap: wrap; gap: 6px; }
+      .x-emos button { font-size: 17px; width: 34px; height: 34px; border-radius: 10px; background: var(--fill-tertiary); line-height: 1; }
+      .x-emos button:active { transform: scale(0.92); }
+      .x-corin { padding: 2px 4px; height: 38px; }
+
       @media (prefers-reduced-motion: reduce) {
         .page.x-app *, .page.x-app *::before, .page.x-app *::after { animation-duration: 0.001s !important; animation-iteration-count: 1 !important; transition-duration: 0.001s !important; }
       }
@@ -1103,7 +1109,13 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
             <ul class="x-mem" id="bots"></ul>
             <div class="x-group x-bed" id="bot-ed" hidden>
               <div class="x-row"><label class="x-field x-avin">Avatar<input class="x-in" id="e-av" maxlength="4" /></label><label class="x-field">Nome<input class="x-in" id="e-name" /></label></div>
+              <div class="x-emos" id="e-emos">
+                <button type="button" data-emo="💰">💰</button><button type="button" data-emo="💼">💼</button><button type="button" data-emo="📚">📚</button><button type="button" data-emo="🏃">🏃</button><button type="button" data-emo="🍳">🍳</button><button type="button" data-emo="📊">📊</button><button type="button" data-emo="✈️">✈️</button><button type="button" data-emo="🎯">🎯</button><button type="button" data-emo="🧠">🧠</button><button type="button" data-emo="💪">💪</button><button type="button" data-emo="🏠">🏠</button><button type="button" data-emo="🤖">🤖</button>
+              </div>
               <label class="x-field">Descrição<input class="x-in" id="e-desc" placeholder="Ex.: Receitas e cardápio da semana" /></label>
+              <div class="x-row"><label class="x-field">Cor do avatar<input type="color" class="x-in x-corin" id="e-cor" value="#7c5cff" /></label><label class="x-check"><input type="checkbox" id="e-corauto" /><span>Automática</span></label></div>
+              <label class="x-check"><input type="checkbox" id="e-lib" /><span>Usa a Biblioteca nas respostas</span></label>
+              <label class="x-check"><input type="checkbox" id="e-mem" /><span>Usa a memória (os fatos sobre você)</span></label>
               <label class="x-field" id="e-pwrap">Instrução (prompt)<textarea class="x-in" id="e-prompt" placeholder="Deixe vazio para gerar a partir do nome e da descrição"></textarea></label>
               <p class="fineprint" id="e-note">O HarllenBot usa a Personalidade acima e coordena o time.</p>
               <div class="links"><button type="button" class="x-primary" id="b-esave">Salvar bot</button><button type="button" class="btn" id="b-ecancel">Cancelar</button></div>
@@ -1448,6 +1460,9 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   S.bots = Array.isArray(S.bots) && S.bots.length ? S.bots.filter(function (b) { return b && b.id; }) : JSON.parse(JSON.stringify(DEF_BOTS));
   if (!S.bots.some(function (b) { return b.id === "main"; })) S.bots.unshift(JSON.parse(JSON.stringify(DEF_BOTS[0])));
   function botById(id) { return S.bots.find(function (b) { return b.id === id; }) || S.bots.find(function (b) { return b.id === "main"; }); }
+  /* Cor própria do bot (b.cor em #rrggbb): gradiente inline; sem cor, vale o do app/posição. */
+  function avStyle(b) { return b && /^#[0-9a-f]{6}$/i.test(b.cor || "") ? ' style="background:linear-gradient(135deg,' + b.cor + "," + hxShift(b.cor, 45) + ');color:#fff"' : ""; }
+  function avBg(el, b) { if (!el) return; if (b && /^#[0-9a-f]{6}$/i.test(b.cor || "")) { el.style.background = "linear-gradient(135deg," + b.cor + "," + hxShift(b.cor, 45) + ")"; el.style.color = "#fff"; } else { el.style.background = ""; el.style.color = ""; } }
   S.sel = S.bots.some(function (b) { return b.id === S.sel; }) ? S.sel : "main";
   var lastBot = "main";
   var HASH_KEY = "";
@@ -1569,7 +1584,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     var b = botById(m.botId);
     if (m.call) { var t = botById(m.call); return '<div class="x-sys">' + esc(b.name) + " chamou " + esc(t.av) + " <b>" + esc(t.name) + "</b>" + (m.text ? "<br>" + esc(m.text) : "") + "</div>"; }
     var cb = cur(), showRegen = !busy && !lastErr && cb && !cb.group && idx === cb.msgs.length - 1;
-    return '<div class="x-msg x-msg--model' + (m.synth ? " x-msg--synth" : "") + '" data-i="' + idx + '"><div class="x-who"><span class="x-av">' + esc(b.av) + "</span>" + esc(b.name) + (m.synth ? ' <span class="x-synth-tag">síntese</span>' : "") + '</div><div class="x-bub">' + md(m.text) + '</div>' + (Array.isArray(m.src) && m.src.length ? '<div class="x-src">Fontes: ' + esc(m.src.map(String).join(" · ")) + "</div>" : "") + '<div class="x-tools"><button class="x-ib x-copymsg" type="button">Copiar</button>' + ("speechSynthesis" in window ? '<button class="x-ib x-speak" type="button">Falar</button>' : "") + '<button class="x-ib x-libmsg" type="button">Salvar na Biblioteca</button>' + (showRegen ? '<button class="x-ib x-regen" type="button">Regenerar</button>' : "") + "</div></div>";
+    return '<div class="x-msg x-msg--model' + (m.synth ? " x-msg--synth" : "") + '" data-i="' + idx + '"><div class="x-who"><span class="x-av"' + avStyle(b) + ">" + esc(b.av) + "</span>" + esc(b.name) + (m.synth ? ' <span class="x-synth-tag">síntese</span>' : "") + '</div><div class="x-bub">' + md(m.text) + '</div>' + (Array.isArray(m.src) && m.src.length ? '<div class="x-src">Fontes: ' + esc(m.src.map(String).join(" · ")) + "</div>" : "") + '<div class="x-tools"><button class="x-ib x-copymsg" type="button">Copiar</button>' + ("speechSynthesis" in window ? '<button class="x-ib x-speak" type="button">Falar</button>' : "") + '<button class="x-ib x-libmsg" type="button">Salvar na Biblioteca</button>' + (showRegen ? '<button class="x-ib x-regen" type="button">Regenerar</button>' : "") + "</div></div>";
   }
   function render() {
     $("t-model").textContent = modelLabel();
@@ -1578,7 +1593,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     var c = cur();
     if (!c.msgs.length && !busy) {
       msgsEl.innerHTML = '<div class="x-empty"><div class="x-logo">H</div><h2>Como posso ajudar, Harllen?</h2><div class="x-chips">' + SUGG.map(function (s) { return '<button class="x-chip x-sugg" type="button">' + s + "</button>"; }).join("") + '</div><div class="x-team">' +
-        S.bots.map(function (b) { return '<button type="button" class="x-tcard' + (b.id === S.sel ? " is-on" : "") + '" data-bot="' + esc(b.id) + '"><span class="x-av">' + esc(b.av) + "</span><span><b>" + esc(b.name) + "</b><small>" + esc(b.desc || "") + "</small></span></button>"; }).join("") + "</div>" +
+        S.bots.map(function (b) { return '<button type="button" class="x-tcard' + (b.id === S.sel ? " is-on" : "") + '" data-bot="' + esc(b.id) + '"><span class="x-av"' + avStyle(b) + ">" + esc(b.av) + "</span><span><b>" + esc(b.name) + "</b><small>" + esc(b.desc || "") + "</small></span></button>"; }).join("") + "</div>" +
         (justSaved && S.provider === "google" ? '<div class="x-klink"><p>Chave salva! Crie um link para não precisar colar a chave de novo:</p><div class="links"><button type="button" class="btn" id="b-wlink">Criar link com minha chave</button></div><div id="w-link"></div></div>' : "") + "</div>";
       if (justSaved && S.provider === "google") { var bw = $("b-wlink"); if (bw) bw.onclick = function () { showKeyLink($("w-link")); }; justSaved = false; }
     } else {
@@ -1643,7 +1658,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   function sysText(b, rag) {
     var sp = S.bots.filter(function (x) { return x.id !== "main"; });
     var base = b.id === "main" ? S.sys + (sp.length ? "\n\nVocê coordena um time de especialistas: " + sp.map(function (x) { return x.name + " (id " + x.id + ") — " + (x.desc || ""); }).join("; ") + ". Quando a pergunta for claramente da área de um especialista, comece sua resposta com uma linha exatamente assim: [[CHAMAR:<id>]] seguida de uma frase curta explicando por que, e não responda o resto. Caso contrário responda normalmente." : "") : (b.prompt || SP(b.name, (b.desc || "assuntos gerais") + "."));
-    var tail = (S.mem.length ? "\n\nFatos que você sabe sobre o Harllen:\n" + S.mem.map(function (f) { return "- " + f; }).join("\n") : "") + (rag && rag.text ? "\n\n" + rag.text : "") + appStatusText();
+    var tail = (b.mem !== false && S.mem.length ? "\n\nFatos que você sabe sobre o Harllen:\n" + S.mem.map(function (f) { return "- " + f; }).join("\n") : "") + (rag && rag.text ? "\n\n" + rag.text : "") + appStatusText();
     if (grpCtx && grpCtx.phase === "synth" && b.id === "main") return S.sys + tail + "\n\nMESA-REDONDA — SUA SÍNTESE FINAL: você moderou uma discussão entre especialistas (" + grpCtx.names + ") sobre a última pergunta do Harllen. Leia tudo o que foi dito e feche com: 1) onde houve consenso; 2) onde houve divergência — e qual lado é mais forte, com o porquê; 3) a recomendação prática final, com os próximos passos. Seja direto e decida; não repita a discussão inteira nem chame outro especialista.";
     var out = base + tail;
     if (grpCtx && grpCtx.phase === "r1") out += "\n\nMESA-REDONDA — RODADA DAS VISÕES: você está numa mesa-redonda com outros especialistas (" + grpCtx.names + ") debatendo a pergunta do Harllen. Dê a SUA visão, do seu ponto de vista de especialista, de forma direta e útil. Não fale pelos colegas nem tente resumir o grupo: defenda a sua posição. Se a pergunta fugir totalmente da sua área, diga isso em uma frase curta.";
@@ -1758,7 +1773,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     busy = new AbortController(); setBusy(true);
     var rag = null;
     try {
-      rag = await libRetrieve(c.msgs);
+      rag = b.lib === false ? null : await libRetrieve(c.msgs);
       if (S.provider === "google") await streamGoogle(b, bot, el, hist, rag); else await streamOA(b, bot, el, rag);
       ok = true;
     } catch (e) {
@@ -1966,10 +1981,10 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   var pop = $("pop");
   function renderPick() {
     var b = botById(S.sel), c0 = cur(), grp = !!(c0 && c0.group);
-    if (grp) { $("t-av").textContent = "👥"; $("t-bot").textContent = "Mesa-redonda"; inp.placeholder = "Pergunte ao grupo…"; }
-    else { $("t-av").textContent = b.av; $("t-bot").textContent = b.name; inp.placeholder = b.id === "main" ? "Pergunte qualquer coisa…" : "Mensagem para " + b.name + "…"; }
+    if (grp) { $("t-av").textContent = "👥"; $("t-bot").textContent = "Mesa-redonda"; inp.placeholder = "Pergunte ao grupo…"; avBg($("t-av"), null); }
+    else { $("t-av").textContent = b.av; $("t-bot").textContent = b.name; inp.placeholder = b.id === "main" ? "Pergunte qualquer coisa…" : "Mensagem para " + b.name + "…"; avBg($("t-av"), b); }
     pop.innerHTML = S.bots.map(function (x) {
-      return '<button type="button" role="menuitem" class="x-popi' + (!grp && x.id === S.sel ? " is-on" : "") + '" data-id="' + esc(x.id) + '"><span class="x-av">' + esc(x.av) + "</span><span>" + (x.id === "main" ? "Automático (" + esc(x.name) + " decide)" : esc(x.name) + " <small>@" + esc(x.id) + " · " + esc(x.desc || "") + "</small>") + "</span></button>";
+      return '<button type="button" role="menuitem" class="x-popi' + (!grp && x.id === S.sel ? " is-on" : "") + '" data-id="' + esc(x.id) + '"><span class="x-av"' + avStyle(x) + ">" + esc(x.av) + "</span><span>" + (x.id === "main" ? "Automático (" + esc(x.name) + " decide)" : esc(x.name) + " <small>@" + esc(x.id) + " · " + esc(x.desc || "") + "</small>") + "</span></button>";
     }).join("") + '<button type="button" role="menuitem" class="x-popi x-grp"><span class="x-av">👥</span><span>Mesa-redonda <small>vários bots discutindo juntos</small></span></button>';
   }
   function selectBot(id) { if (busy) { pop.hidden = true; toast("Aguarde a resposta terminar pra trocar de bot."); return; } if (cur() && cur().group) { pop.hidden = true; toast("Nesta mesa-redonda todos respondem juntos. Pra falar com um bot só, crie uma conversa nova."); return; } S.sel = botById(id).id; saveSettings(); pop.hidden = true; render(); toast("Falando com " + botById(S.sel).name); }
@@ -1982,7 +1997,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   var grpCtx = null, grpActive = false, grpStop = false;
   function openGroup() {
     var sp = S.bots.filter(function (x) { return x.id !== "main"; });
-    $("g-members").innerHTML = sp.length ? sp.map(function (b) { return '<li><label class="x-check"><input type="checkbox" data-gid="' + esc(b.id) + '" checked /><span class="x-av">' + esc(b.av) + '</span><span><b>' + esc(b.name) + "</b> <small>" + esc(b.desc || "") + "</small></span></label></li>"; }).join("") : '<li><span class="sub">Você ainda não tem especialistas. Crie em Configurações › Time de bots.</span></li>';
+    $("g-members").innerHTML = sp.length ? sp.map(function (b) { return '<li><label class="x-check"><input type="checkbox" data-gid="' + esc(b.id) + '" checked /><span class="x-av"' + avStyle(b) + ">" + esc(b.av) + '</span><span><b>' + esc(b.name) + "</b> <small>" + esc(b.desc || "") + "</small></span></label></li>"; }).join("") : '<li><span class="sub">Você ainda não tem especialistas. Crie em Configurações › Time de bots.</span></li>';
     $("gsheet").classList.add("is-open");
   }
   function closeGroup() { $("gsheet").classList.remove("is-open"); }
@@ -2015,11 +2030,13 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   var edB = null;
   function renderBots() {
     $("bots").innerHTML = S.bots.map(function (b, i) {
-      return '<li><span class="x-av">' + esc(b.av) + "</span><span><b>" + esc(b.name) + "</b> <small>@" + esc(b.id) + " · " + esc(b.desc || "") + '</small></span><button type="button" class="x-ib" data-ed="' + i + '">Editar</button>' + (b.id === "main" ? "" : '<button type="button" class="x-ib" data-del="' + i + '" aria-label="Excluir ' + esc(b.name) + '">✕</button>') + "</li>";
+      return '<li><span class="x-av"' + avStyle(b) + ">" + esc(b.av) + "</span><span><b>" + esc(b.name) + "</b> <small>@" + esc(b.id) + " · " + esc(b.desc || "") + '</small></span><button type="button" class="x-ib" data-ed="' + i + '">Editar</button>' + (b.id === "main" ? "" : '<button type="button" class="x-ib" data-del="' + i + '" aria-label="Excluir ' + esc(b.name) + '">✕</button>') + "</li>";
     }).join("");
   }
   function openEd(b) {
     edB = b; $("e-av").value = b.av; $("e-name").value = b.name; $("e-desc").value = b.desc || ""; $("e-prompt").value = b.prompt || "";
+    $("e-cor").value = /^#[0-9a-f]{6}$/i.test(b.cor || "") ? b.cor : "#7c5cff"; $("e-corauto").checked = !b.cor;
+    $("e-lib").checked = b.lib !== false; $("e-mem").checked = b.mem !== false;
     $("e-pwrap").hidden = b.id === "main"; $("e-note").hidden = b.id !== "main"; $("bot-ed").hidden = false; $("e-name").focus();
   }
   function closeEd() { edB = null; $("bot-ed").hidden = true; }
@@ -2034,11 +2051,13 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   $("b-esave").onclick = function () {
     var n = $("e-name").value.trim(); if (!n) { toast("Dê um nome ao bot."); $("e-name").focus(); return; }
     var b = edB; b.name = n; b.av = $("e-av").value.trim() || n[0].toUpperCase(); b.desc = $("e-desc").value.trim();
+    b.cor = $("e-corauto").checked ? "" : $("e-cor").value; b.lib = $("e-lib").checked; b.mem = $("e-mem").checked;
     if (b.id !== "main") b.prompt = $("e-prompt").value.trim() || SP(n, (b.desc || "assuntos gerais") + ".");
     if (!b.id) { var base = norm(n).replace(/[^a-z0-9]/g, "").slice(0, 3) || "bot", id = base, k = 2; while (S.bots.some(function (x) { return x.id === id; })) id = base + k++; b.id = id; S.bots.push(b); }
     saveSettings(); closeEd(); renderBots(); renderPick(); toast("Bot salvo: @" + b.id);
   };
   ["e-av", "e-name", "e-desc"].forEach(function (id) { $(id).addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); $("b-esave").click(); } }); });
+  $("e-emos").addEventListener("click", function (e) { var t = e.target.closest("[data-emo]"); if (t) { $("e-av").value = t.getAttribute("data-emo"); $("e-av").focus(); } });
 
   /* image attach, downscaled to 1600px */
   function unattach() { attached = null; $("prev").hidden = true; $("prev-box").innerHTML = ""; $("f-img").value = ""; }
@@ -2907,7 +2926,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     gdSilent().then(function (ok) { if (ok) syncNow(false); });
   });
   /* auto-atualização: se sair versão nova, recarrega sozinho (uma vez) */
-  var APP_V = "20261008-32";
+  var APP_V = "20261008-33";
   setTimeout(function () {
     fetch(location.pathname, { cache: "no-store" }).then(function (r) { return r.text(); }).then(function (t) {
       var m = t.match(/var APP_V = "([^"]+)"/);
