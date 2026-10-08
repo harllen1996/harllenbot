@@ -928,6 +928,14 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
             <input type="file" id="f-imp" accept="application/json,.json" class="x-sr" />
           </div>
           <div class="x-group">
+            <h2>Sincronização (Google Drive)</h2>
+            <p class="fineprint">Guarda conversas, memória, bots, configurações e a Biblioteca num arquivo (<b>harllenbot-sync.json</b>) no <b>seu</b> Google Drive, para abrir o HarllenBot em qualquer aparelho com tudo igual. Usa o mesmo Client ID do Drive da Biblioteca. Ao abrir outro aparelho, conecte o Drive e toque em sincronizar: as conversas e os documentos se juntam (nada se perde); nas configurações, vale a versão mais recente.</p>
+            <label class="x-check"><input type="checkbox" id="s-syncon" /><span>Sincronizar automaticamente neste aparelho</span></label>
+            <label class="x-check"><input type="checkbox" id="s-synckeys" /><span>Incluir chaves e tokens no arquivo de sincronização (menos seguro; sem isso, cada aparelho pede as chaves uma vez)</span></label>
+            <div class="links"><button type="button" class="btn" id="b-sync">Conectar e sincronizar agora</button></div>
+            <p class="fineprint" id="s-syncinfo">Nunca sincronizado neste aparelho.</p>
+          </div>
+          <div class="x-group">
             <h2>Instalar no celular</h2>
             <p class="fineprint">No Chrome, toque em ⋮ e em 'Adicionar à tela inicial'.</p>
           </div>
@@ -1698,7 +1706,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   var PDFJS_WORKER = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
   var MAMMOTH_URL = "https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js";
   var GIS_URL = "https://accounts.google.com/gsi/client";
-  var GD_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
+  var GD_SCOPE = "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file";
   var DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
   var CU_API = "https://api.clickup.com/api/v2";
   var LIB_HEAD = "Base de conhecimento do Harllen (use quando relevante e cite o título da fonte entre colchetes; se não estiver aqui, diga que não encontrou na Biblioteca):";
@@ -1707,6 +1715,10 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   S.libOn = S.libOn !== false;
   S.gdriveClientId = typeof S.gdriveClientId === "string" ? S.gdriveClientId : "";
   S.clickupToken = typeof S.clickupToken === "string" ? S.clickupToken : "";
+  S.syncOn = S.syncOn !== false;
+  S.syncKeys = S.syncKeys === true;
+  S.syncTs = typeof S.syncTs === "number" ? S.syncTs : 0;
+  if (typeof S.devId !== "string" || !S.devId) S.devId = "d" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
   var LIB = { docs: [], db: null, mem: false, ver: 0, idx: null, idxVer: -1 };
   function idbOpen() {
@@ -2217,6 +2229,129 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
       return libP.then(function (n) { toast(n ? "Backup importado (" + n + " documentos)" : "Backup importado"); });
     }).catch(function () { toast("Arquivo de backup inválido."); }).finally(function () { self.value = ""; });
   };
+
+  /* sincronização pelo Google Drive do usuário */
+  var SYNC_NAME = "harllenbot-sync.json";
+  var syncBusy = false, syncDirty = false, syncTimer = null, syncFileId = "";
+  function syncStamp() { var d = new Date(); return pad2(d.getDate()) + "/" + pad2(d.getMonth() + 1) + " " + pad2(d.getHours()) + ":" + pad2(d.getMinutes()); }
+  function syncInfo(msg) { S.syncLast = msg; var el = $("s-syncinfo"); if (el) el.textContent = msg; }
+  function syncTokenOk() { return !!(GD.token && Date.now() < GD.exp - 60000); }
+  function touchSync() { syncDirty = true; clearTimeout(syncTimer); syncTimer = setTimeout(function () { if (S.syncOn && syncTokenOk()) syncNow(false); }, 5000); }
+  function syncFetch(url, opt) {
+    if (!syncTokenOk()) return Promise.reject(new Error("NOTOKEN"));
+    opt = opt || {}; opt.headers = Object.assign({ Authorization: "Bearer " + GD.token }, opt.headers || {});
+    return fetch(url, opt).then(function (r) { if (r.status === 401) { GD.token = ""; throw new Error("Sessão do Google expirou."); } return r; });
+  }
+  function syncPayload() {
+    var d = { app: "HarllenBotSync", v: 1, updatedAt: Date.now(), device: S.devId,
+      settings: { provider: S.provider, pm: S.pm, cust: S.cust, sys: S.sys, mem: S.mem, bots: S.bots, sel: S.sel, libOn: S.libOn, gdriveClientId: S.gdriveClientId },
+      convs: convs, cur: curId,
+      library: LIB.docs.map(function (x) { return { id: x.id, title: x.title, source: x.source, sourceId: x.sourceId || "", text: x.text, size: x.size || 0, mime: x.mime || "", meta: x.meta || null, remoteMod: x.remoteMod || "", updated: x.updated }; }) };
+    if (S.syncKeys) d.secrets = { key: KEY, keys: S.keys, clickupToken: S.clickupToken };
+    return d;
+  }
+  function findSyncFile() {
+    if (syncFileId) return Promise.resolve(syncFileId);
+    var u = "https://www.googleapis.com/drive/v3/files?spaces=drive&fields=" + encodeURIComponent("files(id,name,modifiedTime)") + "&q=" + encodeURIComponent("name='" + SYNC_NAME + "' and trashed=false");
+    return syncFetch(u).then(function (r) { if (!r.ok) throw new Error("Não consegui listar arquivos no Drive (" + r.status + ")."); return r.json(); }).then(function (j) { var f = (j.files || [])[0]; syncFileId = f ? f.id : ""; return syncFileId; });
+  }
+  function downloadSync() {
+    return findSyncFile().then(function (id) {
+      if (!id) return null;
+      return syncFetch("https://www.googleapis.com/drive/v3/files/" + encodeURIComponent(id) + "?alt=media").then(function (r) { if (!r.ok) throw new Error("Não consegui baixar o arquivo de sincronização (" + r.status + ")."); return r.json(); });
+    });
+  }
+  function uploadSync(data) {
+    var body = JSON.stringify(data);
+    if (syncFileId) return syncFetch("https://www.googleapis.com/upload/drive/v3/files/" + encodeURIComponent(syncFileId) + "?uploadType=media", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: body }).then(function (r) { if (!r.ok) throw new Error("Falha ao gravar no Drive (" + r.status + ")."); });
+    var bnd = "hb" + Date.now().toString(36);
+    var meta = JSON.stringify({ name: SYNC_NAME, mimeType: "application/json" });
+    var mp = "--" + bnd + "\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n" + meta + "\r\n--" + bnd + "\r\nContent-Type: application/json\r\n\r\n" + body + "\r\n--" + bnd + "--";
+    return syncFetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id", { method: "POST", headers: { "Content-Type": "multipart/related; boundary=" + bnd }, body: mp }).then(function (r) { if (!r.ok) throw new Error("Falha ao criar o arquivo no Drive (" + r.status + ")."); return r.json(); }).then(function (j) { syncFileId = j.id || ""; });
+  }
+  function applyRemote(r) {
+    var changed = false;
+    if (r.settings && (r.updatedAt || 0) > (S.syncTs || 0)) {
+      var s = r.settings;
+      if (PROVIDERS[s.provider]) S.provider = s.provider;
+      if (s.pm && typeof s.pm === "object") S.pm = s.pm;
+      if (s.cust && typeof s.cust === "object") S.cust = s.cust;
+      if (typeof s.sys === "string" && s.sys.trim()) S.sys = s.sys;
+      if (Array.isArray(s.mem)) S.mem = s.mem.map(String);
+      if (Array.isArray(s.bots) && s.bots.some(function (b) { return b && b.id === "main"; })) { S.bots = s.bots.filter(function (b) { return b && b.id; }); S.sel = botById(s.sel).id; }
+      if (typeof s.libOn === "boolean") S.libOn = s.libOn;
+      if (typeof s.gdriveClientId === "string" && s.gdriveClientId) S.gdriveClientId = s.gdriveClientId;
+      S.model = S.pm[S.provider];
+      if (r.secrets && S.syncKeys) {
+        if (typeof r.secrets.key === "string") { KEY = r.secrets.key; sset("hb_key", KEY); }
+        if (r.secrets.keys && typeof r.secrets.keys === "object") S.keys = r.secrets.keys;
+        if (typeof r.secrets.clickupToken === "string") S.clickupToken = r.secrets.clickupToken;
+      }
+      changed = true;
+    }
+    if (Array.isArray(r.convs)) {
+      var byId = {}; convs.forEach(function (c) { byId[c.id] = c; });
+      r.convs.forEach(function (rc) {
+        if (!rc || !rc.id || !Array.isArray(rc.msgs)) return;
+        var lc = byId[rc.id];
+        if (!lc) { convs.push(rc); byId[rc.id] = rc; changed = true; }
+        else if (rc.msgs.length > lc.msgs.length || ((rc.ts || 0) > (lc.ts || 0) && rc.msgs.length >= lc.msgs.length)) { lc.title = rc.title; lc.msgs = rc.msgs; lc.ts = rc.ts; changed = true; }
+      });
+      convs.sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
+      if (!convs.some(function (c) { return c.id === curId; })) curId = (r.cur && byId[r.cur]) ? r.cur : ((convs[0] && convs[0].id) || curId);
+    }
+    var libP = Promise.resolve();
+    if (Array.isArray(r.library)) {
+      var lById = {}; LIB.docs.forEach(function (d) { lById[d.id] = d; });
+      r.library.forEach(function (rd) {
+        if (!rd || !rd.id || typeof rd.text !== "string") return;
+        var ld = lById[rd.id];
+        if (!ld || (rd.updated || 0) > (ld.updated || 0)) { if (ld) LIB.docs[LIB.docs.indexOf(ld)] = rd; else LIB.docs.push(rd); lById[rd.id] = rd; libP = libP.then(function () { return libSave(rd); }); changed = true; }
+      });
+      if (changed) { LIB.idx = null; LIB.ver++; }
+    }
+    return libP.then(function () { return changed; });
+  }
+  async function syncNow(manual) {
+    if (syncBusy) { if (manual) toast("Sincronização já em andamento…"); return; }
+    if (!(S.gdriveClientId || "").trim()) { if (manual) toast("Cole o Client ID do Google (Biblioteca › Google Drive) primeiro."); return; }
+    syncBusy = true;
+    try {
+      if (manual) { syncInfo("Conectando ao Google…"); await gdToken(); }
+      if (!syncTokenOk()) { if (manual) toast("Conecte o Google Drive para sincronizar."); return; }
+      syncInfo("Sincronizando…");
+      var remote = await downloadSync();
+      var changed = false;
+      if (remote && remote.app === "HarllenBotSync") changed = await applyRemote(remote);
+      var data = syncPayload();
+      await uploadSync(data);
+      S.syncTs = data.updatedAt; syncDirty = false;
+      sset("hb_settings", S);
+      syncInfo("Sincronizado às " + syncStamp() + " · arquivo '" + SYNC_NAME + "' no seu Drive.");
+      if (changed) { render(); renderLib(); }
+      if (manual) toast("Sincronizado com seu Drive ✓");
+    } catch (e) {
+      syncInfo("Não sincronizou: " + (e && e.message ? e.message : "erro desconhecido") + ". Toque em 'Conectar e sincronizar agora' para tentar de novo.");
+      if (manual) toast("Não consegui sincronizar.");
+    }
+    syncBusy = false;
+  }
+  /* ganchos: todo salvamento local marca o aparelho como "a sincronizar" */
+  saveSettings = (function (orig) { return function () { var r = orig(); touchSync(); return r; }; })(saveSettings);
+  saveConvs = (function (orig) { return function () { var r = orig(); touchSync(); return r; }; })(saveConvs);
+  libSave = (function (orig) { return function (d) { var r = orig(d); touchSync(); return r; }; })(libSave);
+  libDel = (function (orig) { return function (id) { var r = orig(id); touchSync(); return r; }; })(libDel);
+  function syncUI() {
+    if ($("s-syncon")) $("s-syncon").checked = !!S.syncOn;
+    if ($("s-synckeys")) $("s-synckeys").checked = !!S.syncKeys;
+    if ($("s-syncinfo")) $("s-syncinfo").textContent = S.syncLast || "Nunca sincronizado neste aparelho.";
+  }
+  openSet = (function (orig) { return function () { var r = orig(); syncUI(); return r; }; })(openSet);
+  $("b-set").onclick = function () { openSet(); };
+  $("b-set2").onclick = function () { openSet(); };
+  $("b-sync").onclick = function () { syncNow(true); };
+  $("s-syncon").onchange = function () { S.syncOn = this.checked; saveSettings(); toast(S.syncOn ? "Sincronização automática ligada" : "Sincronização automática desligada"); };
+  $("s-synckeys").onchange = function () { S.syncKeys = this.checked; saveSettings(); };
 
   render();
 })();
