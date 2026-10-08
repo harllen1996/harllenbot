@@ -1944,7 +1944,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   }
   function fmtSize(n) { n = +n || 0; return n < 1024 ? n + " B" : n < 1048576 ? (n / 1024).toFixed(n < 10240 ? 1 : 0).replace(".", ",") + " KB" : (n / 1048576).toFixed(1).replace(".", ",") + " MB"; }
   function fmtDate(ts) { try { return new Date(ts).toLocaleDateString("pt-BR"); } catch (e) { return ""; } }
-  function prog(t) { var el = $("l-prog"); el.textContent = t || ""; el.hidden = !t; }
+  function prog(t) { var el = $("l-prog"); el.textContent = t || ""; el.hidden = !t; if (t && /(inválid|sem conexão|erro|falhou|nenhum|nenhuma|marque|cole|negado|bloque|expirou)/i.test(t)) toast(t); }
 
   /* UI da Biblioteca */
   function renderLib() {
@@ -2435,7 +2435,24 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     el.appendChild(t); el.appendChild(w); document.body.appendChild(el);
   }
   function syncWanted() { return S.syncOn && (S.gdriveClientId || "").trim() && S.syncTs > 0; }
-  if (syncWanted()) setTimeout(function () { if (!syncTokenOk()) syncBar(true); }, 1200);
+  /* tenta reconectar ao Google sem mostrar nada; se o Google exigir toque, volta false */
+  function gdSilent() {
+    var cid = (S.gdriveClientId || "").trim();
+    if (!cid || syncTokenOk()) return Promise.resolve(false);
+    return loadScript(GIS_URL).then(function () {
+      return new Promise(function (res) {
+        var oa = window.google && google.accounts && google.accounts.oauth2;
+        if (!oa) { res(false); return; }
+        if (!GD.tc || GD.cid !== cid) { GD.cid = cid; GD.tc = oa.initTokenClient({ client_id: cid, scope: GD_SCOPE, callback: function (r) { if (GD.onTok) GD.onTok(r); }, error_callback: function (e) { if (GD.onErr) GD.onErr(e); } }); }
+        var done = false;
+        var to = setTimeout(function () { if (!done) { done = true; res(false); } }, 6000);
+        GD.onTok = function (r) { if (done) return; done = true; clearTimeout(to); if (r && r.access_token) { GD.token = r.access_token; GD.exp = Date.now() + (+r.expires_in || 3600) * 1000; renderGDState(); res(true); } else res(false); };
+        GD.onErr = function () { if (done) return; done = true; clearTimeout(to); res(false); };
+        try { GD.tc.requestAccessToken({ prompt: "" }); } catch (e) { if (!done) { done = true; clearTimeout(to); res(false); } }
+      });
+    }).catch(function () { return false; });
+  }
+  if (syncWanted()) setTimeout(function () { if (!syncTokenOk()) gdSilent().then(function (ok) { if (ok) syncNow(false); else if (!syncBarOff) syncBar(true); }); }, 1200);
   touchSync = (function (orig) { return function () { orig(); if (syncWanted() && !syncBarOff && !syncTokenOk() && !syncBusy) syncBar(true); }; })(touchSync);
   document.addEventListener("visibilitychange", function () { if (document.visibilityState === "hidden" && syncDirty && S.syncOn && syncTokenOk() && !syncBusy) syncNow(false); });
   document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible" && S.syncOn && syncTokenOk() && !syncBusy) syncNow(false); });
