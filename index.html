@@ -1272,6 +1272,15 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   }
   var convs = sget("hb_convs", []) || [];
   var curId = sget("hb_cur", null);
+  var TOMB = sget("hb_tomb", null) || {};
+  if (!TOMB.c || typeof TOMB.c !== "object") TOMB.c = {};
+  if (!TOMB.d || typeof TOMB.d !== "object") TOMB.d = {};
+  function tombPrune() { var lim = Date.now() - 180 * 864e5; ["c", "d"].forEach(function (k) { Object.keys(TOMB[k]).forEach(function (id) { if (TOMB[k][id] < lim) delete TOMB[k][id]; }); }); }
+  function tombSave() { tombPrune(); sset("hb_tomb", TOMB); }
+  function tombAdd(k, id) { if (!id) return; TOMB[k][id] = Date.now(); tombSave(); }
+  function tombMerge(r) { var ch = false; ["c", "d"].forEach(function (k) { var src = r && r[k]; if (!src || typeof src !== "object") return; Object.keys(src).forEach(function (id) { var t = +src[id] || 0; if (t > (TOMB[k][id] || 0)) { TOMB[k][id] = t; ch = true; } }); }); if (ch) tombSave(); }
+  function tombDead(k, id, ts) { var t = TOMB[k][id]; return !!t && t >= (ts || 0); }
+
   var busy = null, attached = null, lastErr = null;
 
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
@@ -1560,6 +1569,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     if (e.target.closest(".x-del")) {
       if (!confirm("Apagar esta conversa?")) return;
       if (busy && id === curId) busy.abort();
+      tombAdd("c", id);
       convs = convs.filter(function (c) { return c.id !== id; });
       if (!convs.length) convs.push({ id: uid(), title: "Nova conversa", msgs: [], ts: Date.now() });
       if (!cur()) curId = convs[0].id;
@@ -1612,7 +1622,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   $("mem").onclick = function (e) { var b = e.target.closest("button"); if (!b) return; S.mem.splice(+b.dataset.i, 1); saveSettings(); renderMem(); };
   $("b-mem").onclick = function () { var v = $("s-mem").value.trim(); if (v) { S.mem.push(v); saveSettings(); renderMem(); $("s-mem").value = ""; } };
   $("s-mem").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); $("b-mem").click(); } });
-  $("b-wipe").onclick = function () { if (!confirm("Apagar todas as conversas?")) return; if (busy) busy.abort(); convs = [{ id: uid(), title: "Nova conversa", msgs: [], ts: Date.now() }]; curId = convs[0].id; lastErr = null; saveConvs(); toast("Conversas apagadas"); };
+  $("b-wipe").onclick = function () { if (!confirm("Apagar todas as conversas?")) return; if (busy) busy.abort(); convs.forEach(function (c) { tombAdd("c", c.id); }); convs = [{ id: uid(), title: "Nova conversa", msgs: [], ts: Date.now() }]; curId = convs[0].id; lastErr = null; saveConvs(); toast("Conversas apagadas"); };
 
   /* bot picker */
   var pop = $("pop");
@@ -1787,10 +1797,12 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     return idbDo("readwrite", function (st) { st.put(doc); }).then(function () { return doc; }, function () { toast("Não consegui salvar no aparelho (espaço cheio?). Fica só nesta sessão."); return doc; });
   }
   function libDel(id) {
+    tombAdd("d", id);
     LIB.docs = LIB.docs.filter(function (d) { return d.id !== id; }); LIB.ver++;
     return LIB.db ? idbDo("readwrite", function (st) { st.delete(id); }).catch(function () {}) : Promise.resolve();
   }
   function libClear() {
+    LIB.docs.forEach(function (d) { tombAdd("d", d.id); });
     LIB.docs = []; LIB.ver++;
     return LIB.db ? idbDo("readwrite", function (st) { st.clear(); }).catch(function () {}) : Promise.resolve();
   }
@@ -2252,7 +2264,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   function syncPayload() {
     var d = { app: "HarllenBotSync", v: 1, updatedAt: Date.now(), device: S.devId,
       settings: { provider: S.provider, pm: S.pm, cust: S.cust, sys: S.sys, mem: S.mem, bots: S.bots, sel: S.sel, libOn: S.libOn, gdriveClientId: S.gdriveClientId },
-      convs: convs, cur: curId,
+      convs: convs, cur: curId, tomb: TOMB,
       library: LIB.docs.map(function (x) { return { id: x.id, title: x.title, source: x.source, sourceId: x.sourceId || "", text: x.text, size: x.size || 0, mime: x.mime || "", meta: x.meta || null, remoteMod: x.remoteMod || "", updated: x.updated }; }) };
     if (S.syncKeys) d.secrets = { key: KEY, keys: S.keys, clickupToken: S.clickupToken };
     return d;
@@ -2278,6 +2290,13 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   }
   function applyRemote(r) {
     var changed = false;
+    tombMerge(r.tomb);
+    var nC = convs.length;
+    convs = convs.filter(function (c) { return !tombDead("c", c.id, c.ts); });
+    if (convs.length !== nC) { changed = true; if (!convs.length) convs.push({ id: uid(), title: "Nova conversa", msgs: [], ts: Date.now() }); if (!convs.some(function (c) { return c.id === curId; })) curId = convs[0].id; }
+    var deadDocs = LIB.docs.filter(function (d) { return tombDead("d", d.id, d.updated); });
+    var delP = Promise.all(deadDocs.map(function (d) { LIB.docs = LIB.docs.filter(function (x) { return x.id !== d.id; }); return LIB.db ? idbDo("readwrite", function (st) { st.delete(d.id); }).catch(function () {}) : null; }));
+    if (deadDocs.length) { changed = true; LIB.idx = null; LIB.ver++; }
     if (r.settings && (r.updatedAt || 0) > (S.syncTs || 0)) {
       var s = r.settings;
       if (PROVIDERS[s.provider]) S.provider = s.provider;
@@ -2299,7 +2318,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     if (Array.isArray(r.convs)) {
       var byId = {}; convs.forEach(function (c) { byId[c.id] = c; });
       r.convs.forEach(function (rc) {
-        if (!rc || !rc.id || !Array.isArray(rc.msgs)) return;
+        if (!rc || !rc.id || !Array.isArray(rc.msgs) || tombDead("c", rc.id, rc.ts)) return;
         var lc = byId[rc.id];
         if (!lc) { convs.push(rc); byId[rc.id] = rc; changed = true; }
         else if (rc.msgs.length > lc.msgs.length || ((rc.ts || 0) > (lc.ts || 0) && rc.msgs.length >= lc.msgs.length)) { lc.title = rc.title; lc.msgs = rc.msgs; lc.ts = rc.ts; changed = true; }
@@ -2307,11 +2326,11 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
       convs.sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
       if (!convs.some(function (c) { return c.id === curId; })) curId = (r.cur && byId[r.cur]) ? r.cur : ((convs[0] && convs[0].id) || curId);
     }
-    var libP = Promise.resolve();
+    var libP = delP.then(function () {});
     if (Array.isArray(r.library)) {
       var lById = {}; LIB.docs.forEach(function (d) { lById[d.id] = d; });
       r.library.forEach(function (rd) {
-        if (!rd || !rd.id || typeof rd.text !== "string") return;
+        if (!rd || !rd.id || typeof rd.text !== "string" || tombDead("d", rd.id, rd.updated)) return;
         var ld = lById[rd.id];
         if (!ld || (rd.updated || 0) > (ld.updated || 0)) { if (ld) LIB.docs[LIB.docs.indexOf(ld)] = rd; else LIB.docs.push(rd); lById[rd.id] = rd; libP = libP.then(function () { return libSave(rd); }); changed = true; }
       });
@@ -2338,7 +2357,8 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
       S.syncTs = data.updatedAt; syncDirty = false;
       sset("hb_settings", S);
       syncInfo("Sincronizado às " + syncStamp() + " · arquivo '" + SYNC_NAME + "' no seu Drive.");
-      if (changed) { render(); renderLib(); }
+      if (changed) { sset("hb_cur", curId); sset("hb_convs", convs); render(); renderLib(); }
+      syncBar(false);
       if (manual) toast("Sincronizado com seu Drive ✓");
     } catch (e) {
       syncInfo("Não sincronizou: " + (e && e.message ? e.message : "erro desconhecido") + ". Toque em 'Conectar e sincronizar agora' para tentar de novo.");
@@ -2380,6 +2400,27 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     try { if (tk && window.google && google.accounts && google.accounts.oauth2 && google.accounts.oauth2.revoke) google.accounts.oauth2.revoke(tk, function () {}); } catch (e) {}
     renderGDState(); toast("Google Drive desconectado neste aparelho.");
   };
+  /* barra "Sincronizar": o Google exige um toque para reconectar a cada abertura */
+  var syncBarOff = false;
+  function syncBar(show) {
+    var el = $("syncbar");
+    if (!show) { if (el) el.remove(); return; }
+    if (el) return;
+    el = document.createElement("div"); el.id = "syncbar"; el.setAttribute("role", "status");
+    el.style.cssText = "position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 64px);z-index:45;display:flex;gap:8px;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:14px;background:var(--fill-primary);color:var(--text-primary-on);font:var(--type-label);box-shadow:0 6px 20px rgba(0,0,0,.25)";
+    var t = document.createElement("span"); t.textContent = syncDirty ? "Há mudanças para sincronizar com o Drive." : "Sincronizar com seu Google Drive?";
+    var b = document.createElement("button"); b.type = "button"; b.textContent = "Sincronizar"; b.style.cssText = "border:0;border-radius:999px;padding:8px 14px;font:inherit;font-weight:600;background:var(--text-primary-on);color:var(--fill-primary);cursor:pointer";
+    var x = document.createElement("button"); x.type = "button"; x.textContent = "✕"; x.setAttribute("aria-label", "Fechar"); x.style.cssText = "border:0;background:transparent;color:inherit;font:inherit;padding:6px;cursor:pointer";
+    b.onclick = function () { syncBar(false); syncNow(true); };
+    x.onclick = function () { syncBarOff = true; syncBar(false); };
+    var w = document.createElement("div"); w.style.cssText = "display:flex;gap:4px;align-items:center"; w.appendChild(b); w.appendChild(x);
+    el.appendChild(t); el.appendChild(w); document.body.appendChild(el);
+  }
+  function syncWanted() { return S.syncOn && (S.gdriveClientId || "").trim() && S.syncTs > 0; }
+  if (syncWanted()) setTimeout(function () { if (!syncTokenOk()) syncBar(true); }, 1200);
+  touchSync = (function (orig) { return function () { orig(); if (syncWanted() && !syncBarOff && !syncTokenOk() && !syncBusy) syncBar(true); }; })(touchSync);
+  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "hidden" && syncDirty && S.syncOn && syncTokenOk() && !syncBusy) syncNow(false); });
+  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible" && S.syncOn && syncTokenOk() && !syncBusy) syncNow(false); });
 
   render();
 })();
