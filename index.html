@@ -1978,7 +1978,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   S.editTs = typeof S.editTs === "number" ? S.editTs : 0;
   if (typeof S.devId !== "string" || !S.devId) S.devId = "d" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
-  var LIB = { docs: [], db: null, mem: false, ver: 0, idx: null, idxVer: -1 };
+  var LIB = { docs: [], db: null, mem: false, ver: 0, idx: null, idxVer: -1, saveWarned: false };
   function idbOpen() {
     return new Promise(function (res, rej) {
       try {
@@ -2035,7 +2035,11 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     if (i >= 0) LIB.docs[i] = doc; else LIB.docs.unshift(doc);
     LIB.ver++;
     if (!LIB.db) return Promise.resolve(doc);
-    return idbDo("readwrite", function (st) { st.put(doc); }).then(function () { return doc; }, function () { toast("Não consegui salvar no aparelho (espaço cheio?). Fica só nesta sessão."); return doc; });
+    /* B-12: falha de espaço nao pode virar um aviso por documento importado. Marca o doc
+       como nao persistido (unsaved, so em memoria — nao entra no sync/backup) e avisa uma
+       unica vez por sequencia de falhas; uma gravacao que volta a funcionar limpa a marca
+       e rearma o aviso para uma falha futura. */
+    return idbDo("readwrite", function (st) { st.put(doc); }).then(function () { delete doc.unsaved; LIB.saveWarned = false; return doc; }, function () { doc.unsaved = true; LIB.ver++; if (!LIB.saveWarned) { LIB.saveWarned = true; toast("Não consegui salvar no aparelho (espaço cheio?). Os documentos afetados ficam só nesta sessão e marcados como não salvos."); } return doc; });
   }
   function libDel(id) {
     tombAdd("d", id);
@@ -2185,7 +2189,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
       return hay.indexOf(ql) >= 0 || (q && q.split(" ").every(function (w) { return hay.indexOf(w) >= 0; }));
     });
     $("l-docs").innerHTML = list.length ? list.map(function (d) {
-      return '<li><span class="x-av" aria-hidden="true">' + (SRC_ICON[d.source] || "📄") + '</span><span><b>' + esc(d.title) + "</b><small>" + esc(SRC_LABEL[d.source] || "Arquivo") + " · " + fmtSize(d.size) + " · " + fmtDate(d.updated) + '</small></span><button type="button" class="x-ib" data-del="' + esc(d.id) + '" aria-label="Apagar ' + esc(d.title) + '">✕</button></li>';
+      return '<li><span class="x-av" aria-hidden="true">' + (SRC_ICON[d.source] || "📄") + '</span><span><b>' + esc(d.title) + "</b><small>" + esc(SRC_LABEL[d.source] || "Arquivo") + " · " + fmtSize(d.size) + " · " + fmtDate(d.updated) + (d.unsaved ? " · não salvo neste aparelho" : "") + '</small></span><button type="button" class="x-ib" data-del="' + esc(d.id) + '" aria-label="Apagar ' + esc(d.title) + '">✕</button></li>';
     }).join("") : '<li><span class="sub">' + (n ? "Nada encontrado." : "Nenhum documento ainda. Adicione arquivos, cole um texto ou importe do Drive e do ClickUp.") + "</span></li>";
     $("b-lwipe").hidden = !n;
     $("b-gsync").hidden = !LIB.docs.some(function (d) { return d.source === "drive"; });
@@ -2771,7 +2775,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     gdSilent().then(function (ok) { if (ok) syncNow(false); });
   });
   /* auto-atualização: se sair versão nova, recarrega sozinho (uma vez) */
-  var APP_V = "20261008-24";
+  var APP_V = "20261008-25";
   setTimeout(function () {
     fetch(location.pathname, { cache: "no-store" }).then(function (r) { return r.text(); }).then(function (t) {
       var m = t.match(/var APP_V = "([^"]+)"/);
