@@ -2545,16 +2545,39 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   function downloadSync() {
     return findSyncFile().then(function (id) {
       if (!id) return null;
-      return syncFetch("https://www.googleapis.com/drive/v3/files/" + encodeURIComponent(id) + "?alt=media").then(function (r) { if (!r.ok) throw new Error("Não consegui baixar o arquivo de sincronização (" + r.status + ")."); return r.json(); });
+      return syncFetch("https://www.googleapis.com/drive/v3/files/" + encodeURIComponent(id) + "?alt=media").then(function (r) {
+        if (r.status === 404) {
+          syncFileId = "";
+          return findSyncFile().then(function (id2) {
+            if (!id2 || id2 === id) return null;
+            return syncFetch("https://www.googleapis.com/drive/v3/files/" + encodeURIComponent(id2) + "?alt=media").then(function (r2) { if (r2.status === 404) { syncFileId = ""; return null; } if (!r2.ok) throw new Error("Não consegui baixar o arquivo de sincronização (" + r2.status + ")."); return r2.json(); });
+          });
+        }
+        if (!r.ok) throw new Error("Não consegui baixar o arquivo de sincronização (" + r.status + ").");
+        return r.json();
+      });
     });
   }
   function uploadSync(data) {
     var body = JSON.stringify(data);
-    if (syncFileId) return syncFetch("https://www.googleapis.com/upload/drive/v3/files/" + encodeURIComponent(syncFileId) + "?uploadType=media", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: body }).then(function (r) { if (!r.ok) throw new Error("Falha ao gravar no Drive (" + r.status + ")."); });
-    var bnd = "hb" + Date.now().toString(36);
-    var meta = JSON.stringify({ name: SYNC_NAME, mimeType: "application/json" });
-    var mp = "--" + bnd + "\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n" + meta + "\r\n--" + bnd + "\r\nContent-Type: application/json\r\n\r\n" + body + "\r\n--" + bnd + "--";
-    return syncFetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id", { method: "POST", headers: { "Content-Type": "multipart/related; boundary=" + bnd }, body: mp }).then(function (r) { if (!r.ok) throw new Error("Falha ao criar o arquivo no Drive (" + r.status + ")."); return r.json(); }).then(function (j) { syncFileId = j.id || ""; });
+    function createSync() {
+      var bnd = "hb" + Date.now().toString(36);
+      var meta = JSON.stringify({ name: SYNC_NAME, mimeType: "application/json" });
+      var mp = "--" + bnd + "\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n" + meta + "\r\n--" + bnd + "\r\nContent-Type: application/json\r\n\r\n" + body + "\r\n--" + bnd + "--";
+      return syncFetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id", { method: "POST", headers: { "Content-Type": "multipart/related; boundary=" + bnd }, body: mp }).then(function (r) { if (!r.ok) throw new Error("Falha ao criar o arquivo no Drive (" + r.status + ")."); return r.json(); }).then(function (j) { syncFileId = j.id || ""; });
+    }
+    function patchSync(id, retried) {
+      return syncFetch("https://www.googleapis.com/upload/drive/v3/files/" + encodeURIComponent(id) + "?uploadType=media", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: body }).then(function (r) {
+        if (r.status === 404) {
+          syncFileId = "";
+          if (retried) throw new Error("Falha ao gravar no Drive (404).");
+          return findSyncFile().then(function (id2) { if (id2) return patchSync(id2, true); return createSync(); });
+        }
+        if (!r.ok) throw new Error("Falha ao gravar no Drive (" + r.status + ").");
+      });
+    }
+    if (syncFileId) return patchSync(syncFileId, false);
+    return createSync();
   }
   function applyRemote(r) {
     var changed = false;
@@ -2722,7 +2745,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     gdSilent().then(function (ok) { if (ok) syncNow(false); });
   });
   /* auto-atualização: se sair versão nova, recarrega sozinho (uma vez) */
-  var APP_V = "20261008-17";
+  var APP_V = "20261008-18";
   setTimeout(function () {
     fetch(location.pathname, { cache: "no-store" }).then(function (r) { return r.text(); }).then(function (t) {
       var m = t.match(/var APP_V = "([^"]+)"/);
