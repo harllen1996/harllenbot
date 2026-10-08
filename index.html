@@ -2527,7 +2527,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
 
   /* sincronização pelo Google Drive do usuário */
   var SYNC_NAME = "harllenbot-sync.json";
-  var syncBusy = false, syncDirty = false, syncTimer = null, syncFileId = "";
+  var syncBusy = false, syncDirty = false, syncTimer = null, syncFileId = "", lastSyncAt = 0;
   function pad2(n) { return (n < 10 ? "0" : "") + n; }
   function syncStamp() { var d = new Date(); return pad2(d.getDate()) + "/" + pad2(d.getMonth() + 1) + " " + pad2(d.getHours()) + ":" + pad2(d.getMinutes()); }
   function syncInfo(msg) { S.syncLast = msg; var el = $("s-syncinfo"); if (el) el.textContent = msg; }
@@ -2646,6 +2646,8 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
       if (manual) { toast("Falta o Client ID do Google — abri a Biblioteca no campo certo."); closeSet(); openLib(); setTimeout(function () { var d = document.querySelector("#lib details.x-help"); if (d) d.open = true; var f = $("l-gcid"); if (f) f.focus(); }, 400); }
       return;
     }
+    /* B-08: retorno automático sem nada novo e logo após um sync OK não baixa nem sobe de novo */
+    if (!manual && !syncDirty && lastSyncAt && Date.now() - lastSyncAt < 30000) return;
     syncBusy = true;
     try {
       if (manual) { syncInfo("Conectando ao Google…"); await gdToken(); }
@@ -2654,9 +2656,23 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
       var remote = await downloadSync();
       var changed = false;
       if (remote && remote.app === "HarllenBotSync") changed = await applyRemote(remote);
+      /* B-08: sem edição local (syncDirty falso), sem mudança vinda do merge e com arquivo
+         remoto válido, o sync automático é só de leitura — não sobe o payload inteiro de novo
+         (não avança updatedAt à toa nem faz os aparelhos ficarem "respondendo" um ao outro).
+         Manual, edição local, merge que mudou algo ou arquivo ainda inexistente sobem normalmente. */
+      var needUpload = manual || syncDirty || changed || !remote || remote.app !== "HarllenBotSync";
+      if (!needUpload) {
+        if (remote && remote.updatedAt) S.syncTs = remote.updatedAt;
+        syncDirty = false; lastSyncAt = Date.now();
+        syncInfo("Sincronizado às " + syncStamp() + " · arquivo '" + SYNC_NAME + "' no seu Drive.");
+        sset("hb_settings", S);
+        syncBar(false);
+        syncBusy = false;
+        return;
+      }
       var data = syncPayload();
       await uploadSync(data);
-      S.syncTs = data.updatedAt; syncDirty = false; sset("hb_syncmute", 0);
+      S.syncTs = data.updatedAt; syncDirty = false; lastSyncAt = Date.now(); sset("hb_syncmute", 0);
       syncInfo("Sincronizado às " + syncStamp() + " · arquivo '" + SYNC_NAME + "' no seu Drive.");
       sset("hb_settings", S);
       if (changed) { sset("hb_cur", curId); sset("hb_convs", convs); render(); renderLib(); }
@@ -2754,7 +2770,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     gdSilent().then(function (ok) { if (ok) syncNow(false); });
   });
   /* auto-atualização: se sair versão nova, recarrega sozinho (uma vez) */
-  var APP_V = "20261008-20";
+  var APP_V = "20261008-21";
   setTimeout(function () {
     fetch(location.pathname, { cache: "no-store" }).then(function (r) { return r.text(); }).then(function (t) {
       var m = t.match(/var APP_V = "([^"]+)"/);
