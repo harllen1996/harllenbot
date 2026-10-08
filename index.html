@@ -843,6 +843,155 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
       .x-src { font: var(--type-caption); color: var(--text-secondary); overflow-wrap: anywhere; }
       [hidden] { display: none !important; }
     </style>
+    <style>
+      /* ===== HarllenBot 2.0 — repaginação: gradiente, vidro e movimento ===== */
+      :root {
+        --acc-1: #7c5cff;
+        --acc-2: #22d3ee;
+        --acc-grad: linear-gradient(135deg, var(--acc-1) 0%, var(--acc-2) 100%);
+        --acc-ink: light-dark(#6d28d9, #b7a6ff);
+        --acc-soft: light-dark(rgba(124, 92, 255, 0.1), rgba(124, 92, 255, 0.18));
+        --card-brd: light-dark(rgba(20, 20, 50, 0.09), rgba(255, 255, 255, 0.1));
+        --pop-shadow: 0 16px 40px rgb(10 10 30 / 0.22), 0 2px 8px rgb(10 10 30 / 0.12);
+        --dur-med: 260ms;
+      }
+      @keyframes hb-in { from { opacity: 0; transform: translateY(10px) scale(0.985); } to { opacity: 1; transform: none; } }
+      @keyframes hb-sheet { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+      @keyframes hb-pop { from { opacity: 0; transform: translateY(-4px) scale(0.97); } to { opacity: 1; transform: none; } }
+      @keyframes hb-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+      @keyframes hb-spin { to { transform: rotate(360deg); } }
+      @keyframes hb-pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.45); } 70% { box-shadow: 0 0 0 11px rgba(255, 59, 48, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); } }
+      @keyframes hb-drop { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+      @keyframes hb-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+
+      .page.x-app { background-image: radial-gradient(560px 260px at 88% -40px, light-dark(rgba(34, 211, 238, 0.13), rgba(34, 211, 238, 0.09)), transparent 62%), radial-gradient(640px 340px at -80px 108%, light-dark(rgba(124, 92, 255, 0.13), rgba(124, 92, 255, 0.1)), transparent 62%); background-repeat: no-repeat; }
+      .page.x-app ::selection { background: rgba(124, 92, 255, 0.3); }
+
+      /* barra superior */
+      .page.x-app > .x-bar { background: light-dark(rgba(255, 255, 255, 0.78), rgba(14, 14, 18, 0.78)); backdrop-filter: blur(16px) saturate(1.5); -webkit-backdrop-filter: blur(16px) saturate(1.5); border-bottom: 1px solid var(--card-brd); }
+      .x-bar h1::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--acc-grad); margin-right: 9px; vertical-align: 2px; box-shadow: 0 0 10px rgba(124, 92, 255, 0.8); }
+      .x-ib { border-radius: 12px; transition: background var(--dur-quick), transform 0.15s var(--ease-out), color var(--dur-quick); }
+      .x-ib:active { transform: scale(0.88); }
+      .x-ib svg { transition: transform 0.25s var(--ease-out); }
+      #b-theme:active svg { transform: rotate(45deg); }
+      #b-menu:active svg { transform: scaleX(0.8); }
+      #b-new:active svg { transform: rotate(90deg); }
+
+      /* avatares e seletor de bot */
+      .x-av { background: var(--acc-grad); color: #fff; border-radius: 9px; font-weight: 700; box-shadow: 0 3px 9px rgba(124, 92, 255, 0.35); }
+      .x-pick { border: 1px solid var(--card-brd); background: light-dark(rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.06)); box-shadow: 0 2px 8px rgb(10 10 30 / 0.06); transition: transform 0.15s var(--ease-out), box-shadow 0.2s; }
+      .x-pick:active { transform: scale(0.95); }
+      .x-pop { border-radius: 20px; border: 1px solid var(--card-brd); background: light-dark(rgba(255, 255, 255, 0.94), rgba(24, 24, 32, 0.94)); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); box-shadow: var(--pop-shadow); padding: 8px; animation: hb-pop 0.2s var(--ease-out); transform-origin: top right; }
+      .x-popi { border-radius: 14px; transition: background var(--dur-quick), transform 0.15s var(--ease-out); }
+      .x-popi:active { transform: scale(0.98); }
+      .x-popi.is-on { background: var(--acc-soft); }
+      .x-team .x-tcard:nth-child(2) .x-av, .x-pop .x-popi:nth-child(2) .x-av { background: linear-gradient(135deg, #f59e0b, #ef4444); box-shadow: 0 3px 9px rgba(245, 158, 11, 0.4); }
+      .x-team .x-tcard:nth-child(3) .x-av, .x-pop .x-popi:nth-child(3) .x-av { background: linear-gradient(135deg, #10b981, #22d3ee); box-shadow: 0 3px 9px rgba(16, 185, 129, 0.4); }
+      .x-team .x-tcard:nth-child(4) .x-av, .x-pop .x-popi:nth-child(4) .x-av { background: linear-gradient(135deg, #ec4899, #8b5cf6); box-shadow: 0 3px 9px rgba(236, 72, 153, 0.4); }
+      .x-team .x-tcard:nth-child(5) .x-av, .x-pop .x-popi:nth-child(5) .x-av { background: linear-gradient(135deg, #3b82f6, #06b6d4); box-shadow: 0 3px 9px rgba(59, 130, 246, 0.4); }
+      .x-team .x-tcard:nth-child(6) .x-av, .x-pop .x-popi:nth-child(6) .x-av { background: linear-gradient(135deg, #f43f5e, #f59e0b); box-shadow: 0 3px 9px rgba(244, 63, 94, 0.4); }
+
+      /* mensagens */
+      .x-inner > .x-msg:last-child, .x-inner > .x-err { animation: hb-in 0.32s var(--ease-out) both; }
+      .x-msg--user .x-bub { background: var(--acc-grad); color: #fff; border-radius: 20px 20px 6px 20px; box-shadow: 0 8px 18px light-dark(rgba(124, 92, 255, 0.28), rgba(124, 92, 255, 0.32)); padding: 11px 15px; }
+      .x-msg--user .x-bub code { background: rgba(255, 255, 255, 0.22); color: #fff; }
+      .x-msg--model .x-bub { background: light-dark(#ffffff, #1e1e26); border: 1px solid var(--card-brd); border-radius: 20px 20px 20px 6px; box-shadow: 0 2px 10px rgb(10 10 30 / 0.05); padding: 11px 15px; }
+      .x-who { font-weight: 600; color: var(--text-primary); }
+      .x-bub.x-typing { border-color: light-dark(rgba(124, 92, 255, 0.5), rgba(124, 92, 255, 0.55)); box-shadow: 0 0 0 3px var(--acc-soft), 0 2px 10px rgb(10 10 30 / 0.05); }
+      .x-typing::after { color: var(--acc-1); }
+      .x-sys { background: var(--acc-soft); color: var(--acc-ink); border-radius: var(--r-pill); padding: 6px 14px; justify-self: center; width: fit-content; max-width: 92%; }
+      .x-err { border-radius: 18px; background: light-dark(rgba(255, 59, 48, 0.07), rgba(255, 59, 48, 0.12)); border: 1px solid light-dark(rgba(255, 59, 48, 0.3), rgba(255, 59, 48, 0.35)); }
+      .x-tools .x-ib { border-radius: 10px; padding: 0 10px; }
+      .x-tools .x-ib:active { background: var(--acc-soft); color: var(--acc-ink); }
+      .x-banner { background: var(--acc-soft); color: var(--acc-ink); animation: hb-drop 0.3s var(--ease-out); }
+
+      /* campo de mensagem */
+      .x-comp { background: light-dark(rgba(255, 255, 255, 0.8), rgba(14, 14, 18, 0.82)); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); border-top: 1px solid var(--card-brd); }
+      .x-comp-in { border-radius: 28px; border: 1px solid var(--card-brd); background: light-dark(#ffffff, #1d1d24); box-shadow: 0 10px 28px rgb(10 10 30 / 0.12); padding: 5px; transition: border-color var(--dur-med), box-shadow var(--dur-med); }
+      .x-comp-in:focus-within { border-color: light-dark(rgba(124, 92, 255, 0.55), rgba(124, 92, 255, 0.6)); box-shadow: 0 0 0 4px var(--acc-soft), 0 12px 30px rgb(10 10 30 / 0.14); }
+      .x-comp textarea { padding: 10px 4px 10px 10px; }
+      .x-send { background: var(--acc-grad); border-radius: 50%; width: 42px; height: 42px; min-width: 42px; box-shadow: 0 6px 16px light-dark(rgba(124, 92, 255, 0.35), rgba(124, 92, 255, 0.42)); transition: transform 0.18s var(--ease-out), opacity 0.2s, filter 0.2s, box-shadow 0.2s; }
+      .x-comp-in:has(textarea:placeholder-shown) .x-send:not([aria-label="Parar"]) { opacity: 0.35; filter: grayscale(0.65); box-shadow: none; }
+      .x-send[aria-label="Parar"] { animation: hb-breathe 1.2s ease-in-out infinite; }
+      .x-send:active { transform: scale(0.88); }
+      .x-mic.is-on { animation: hb-pulse 1.3s ease-out infinite; border-radius: 50%; color: #ff3b30; }
+
+      /* tela inicial */
+      .x-logo { width: 76px; height: 76px; border-radius: 23px; background: var(--acc-grad); color: #fff; font-size: 37px; box-shadow: 0 14px 30px light-dark(rgba(124, 92, 255, 0.35), rgba(124, 92, 255, 0.42)); position: relative; }
+      .x-empty .x-logo { animation: hb-float 5.5s ease-in-out infinite; }
+      .x-empty .x-logo::after { content: ""; position: absolute; inset: -10px; border-radius: 30px; border: 1.5px solid light-dark(rgba(124, 92, 255, 0.3), rgba(124, 92, 255, 0.38)); border-top-color: transparent; border-bottom-color: transparent; animation: hb-spin 8s linear infinite; }
+      .x-logo--sm { width: 42px; height: 42px; border-radius: 13px; font-size: 20px; box-shadow: 0 6px 14px rgba(124, 92, 255, 0.32); }
+      .x-empty h2 { background: linear-gradient(135deg, light-dark(#6d28d9, #c4b5fd), light-dark(#0891b2, #67e8f9)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+      .x-chip { border: 1px solid var(--card-brd); background: light-dark(#ffffff, #1e1e26); box-shadow: 0 2px 8px rgb(10 10 30 / 0.05); transition: transform 0.16s var(--ease-out), box-shadow 0.2s, background 0.2s, border-color 0.2s; }
+      .x-chip:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgb(10 10 30 / 0.1); }
+      .x-chip:active { transform: scale(0.96); }
+      .x-chip.is-on { background: var(--acc-soft); border-color: light-dark(rgba(124, 92, 255, 0.5), rgba(124, 92, 255, 0.55)); color: var(--acc-ink); }
+      .x-tcard { border: 1px solid var(--card-brd); border-radius: 18px; background: light-dark(#ffffff, #1b1b22); box-shadow: 0 2px 10px rgb(10 10 30 / 0.05); padding: 12px 14px; transition: transform 0.18s var(--ease-out), box-shadow 0.22s, border-color 0.2s, background 0.2s; }
+      .x-tcard:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgb(10 10 30 / 0.1); }
+      .x-tcard:active { transform: scale(0.98); }
+      .x-tcard.is-on { border-color: light-dark(rgba(124, 92, 255, 0.55), rgba(124, 92, 255, 0.6)); background: var(--acc-soft); }
+      .x-team { grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr)); }
+      .x-empty > * { min-width: 0; }
+
+      /* menu lateral */
+      .x-scrim { backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+      .x-drawer { background: light-dark(#fbfbfd, #141419); border-right: 0; box-shadow: 24px 0 48px rgb(0 0 0 / 0.18); grid-template-rows: auto auto auto minmax(0, 1fr) auto; }
+      .x-drawer > div.x-dhead { display: flex; align-items: center; gap: 12px; padding: 20px 18px 4px; }
+      .x-dhead-tx b { display: block; font: var(--type-body-strong); }
+      .x-dhead-tx small { color: var(--text-secondary); font: var(--type-caption); }
+      .x-drawer > div.x-dnew { padding: 12px 14px 2px; display: grid; }
+      .x-dlabel { margin: 0; padding: 16px 20px 6px; font: var(--type-caption); letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-secondary); }
+      .x-convs { padding: 0 10px; }
+      .x-convs li { border-radius: 14px; padding: 2px 4px; margin-bottom: 2px; transition: background var(--dur-quick); }
+      .x-convs li.is-cur { background: var(--acc-soft); }
+      .x-convs li.is-cur .x-open { color: var(--acc-ink); font-weight: 600; }
+      .x-convs .x-ib:active { color: #ff3b30; }
+      .is-drawer .x-convs li { animation: hb-in 0.3s var(--ease-out) both; }
+      .is-drawer .x-convs li:nth-child(2) { animation-delay: 0.04s; }
+      .is-drawer .x-convs li:nth-child(3) { animation-delay: 0.08s; }
+      .is-drawer .x-convs li:nth-child(4) { animation-delay: 0.12s; }
+      .is-drawer .x-convs li:nth-child(5) { animation-delay: 0.16s; }
+      .is-drawer .x-convs li:nth-child(6) { animation-delay: 0.2s; }
+      .x-dfoot { display: grid; gap: 4px; padding: 10px 12px max(12px, env(safe-area-inset-bottom)); }
+      .x-dfoot .x-ib { width: 100%; min-height: 48px; justify-content: flex-start; gap: 12px; padding: 0 12px; border-radius: 14px; font: var(--type-label); }
+      .x-dfoot .x-ib svg { width: 21px; height: 21px; }
+      .x-dfoot .x-ib:active { background: var(--acc-soft); color: var(--acc-ink); }
+
+      /* telas (Configurações e Biblioteca) */
+      .x-sheet { background: light-dark(#f2f2f7, #0e0e12); }
+      .x-sheet.is-open { animation: hb-sheet 0.3s var(--ease-out); }
+      .x-sheet .x-bar { background: light-dark(rgba(255, 255, 255, 0.85), rgba(14, 14, 18, 0.86)); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); border-bottom: 1px solid var(--card-brd); }
+      .x-sbody { gap: 16px; padding-top: 20px; }
+      .x-sbody > .x-group { background: light-dark(#ffffff, #1b1b22); border: 1px solid var(--card-brd); border-radius: 20px; padding: 18px 16px; box-shadow: 0 1px 3px rgb(10 10 30 / 0.05); }
+      .x-sbody h2 { display: flex; align-items: center; gap: 11px; margin: 0; letter-spacing: -0.01em; }
+      .x-hi { display: inline-grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 11px; background: var(--acc-soft); color: var(--acc-ink); }
+      .x-hi svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+      .x-bed { background: light-dark(rgba(124, 92, 255, 0.045), rgba(124, 92, 255, 0.07)); border-color: light-dark(rgba(124, 92, 255, 0.25), rgba(124, 92, 255, 0.32)); border-radius: 16px; }
+      .x-in { background: light-dark(#f4f4f8, #14141a); border: 1px solid var(--card-brd); border-radius: 14px; transition: border-color var(--dur-quick), box-shadow var(--dur-quick); }
+      .x-in:focus { outline: none; border-color: light-dark(rgba(124, 92, 255, 0.6), rgba(167, 139, 250, 0.65)); box-shadow: 0 0 0 4px var(--acc-soft); }
+      .x-check input { accent-color: var(--acc-1); }
+      .x-sheet::-webkit-scrollbar, .x-convs::-webkit-scrollbar { width: 0; }
+
+      /* botões */
+      .x-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: var(--acc-grad); border-radius: 14px; font-weight: 600; box-shadow: 0 8px 20px light-dark(rgba(124, 92, 255, 0.32), rgba(124, 92, 255, 0.38)); transition: transform 0.15s var(--ease-out), box-shadow 0.2s, filter 0.2s; }
+      .x-primary svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+      .x-primary:hover { filter: brightness(1.06); }
+      .x-primary:active { transform: scale(0.96); }
+      .x-primary:disabled { filter: grayscale(0.5); box-shadow: none; }
+      .page .btn { transition: transform 0.15s var(--ease-out), background var(--dur-quick), border-color var(--dur-quick); }
+      .page .btn:active { transform: scale(0.96); }
+      .x-gbtn { box-shadow: 0 2px 10px rgb(10 10 30 / 0.08); transition: transform 0.15s var(--ease-out), box-shadow 0.2s; }
+      .x-gbtn:active { transform: scale(0.97); }
+
+      /* avisos */
+      .x-toast { background: light-dark(#17171d, #f4f4f8); color: light-dark(#ffffff, #17171d); font-weight: 600; padding: 11px 18px; box-shadow: var(--pop-shadow); transform: translate(-50%, 10px) scale(0.97); transition: opacity var(--dur-quick), transform 0.25s var(--ease-out); }
+      .x-toast.is-on { transform: translate(-50%, 0) scale(1); }
+      #syncbar { animation: hb-drop 0.35s var(--ease-out); }
+
+      @media (prefers-reduced-motion: reduce) {
+        .page.x-app *, .page.x-app *::before, .page.x-app *::after { animation-duration: 0.001s !important; animation-iteration-count: 1 !important; transition-duration: 0.001s !important; }
+      }
+    </style>
   </head>
   <body>
     <div class="page x-app" id="top">
@@ -872,15 +1021,17 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
       </footer>
       <div class="x-scrim" id="scrim"></div>
       <nav class="x-drawer" id="drawer" aria-label="Conversas">
-        <div><button class="x-primary" id="b-new2">+ Nova conversa</button></div>
+        <div class="x-dhead"><span class="x-logo x-logo--sm">H</span><span class="x-dhead-tx"><b>HarllenBot</b><small>Seu assistente pessoal</small></span></div>
+        <div class="x-dnew"><button class="x-primary" id="b-new2"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nova conversa</button></div>
+        <p class="x-dlabel">Conversas</p>
         <ul class="x-convs" id="convs"></ul>
-        <div class="x-dfoot"><button class="x-ib" id="b-lib">Biblioteca</button><button class="x-ib" id="b-set2">Configurações</button></div>
+        <div class="x-dfoot"><button class="x-ib" id="b-lib"><svg viewBox="0 0 24 24"><path d="M12 6.2C10.3 4.7 8 4.2 4 4.2v14c4 0 6.3.5 8 2 1.7-1.5 4-2 8-2v-14c-4 0-6.3.5-8 2z"/><path d="M12 6.2v14"/></svg>Biblioteca</button><button class="x-ib" id="b-set2"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.6M12 18.4V21M3 12h2.6M18.4 12H21M5.4 5.4l1.8 1.8M16.8 16.8l1.8 1.8M18.6 5.4l-1.8 1.8M7.2 16.8l-1.8 1.8"/></svg>Configurações</button></div>
       </nav>
       <section class="x-sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Configurações">
         <header class="x-bar"><h1>Configurações</h1><button class="x-ib" id="b-close" aria-label="Fechar">✕</button></header>
         <div class="x-sbody">
           <div class="x-group">
-            <h2>Provedor de IA</h2>
+            <h2><span class="x-hi"><svg viewBox="0 0 24 24"><path d="M13 2L4.5 13.5H11L9.5 22 19 10h-6.5L13 2z"/></svg></span>Provedor de IA</h2>
             <select class="x-in" id="s-prov">
               <option value="google">Google (Gemini/Gemma) — grátis</option>
               <option value="openrouter">OpenRouter — vários modelos grátis</option>
@@ -889,25 +1040,25 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
             <p class="fineprint">Cada provedor usa a sua própria chave. Todas ficam salvas só neste aparelho.</p>
           </div>
           <div class="x-group">
-            <h2>Chave da API</h2>
+            <h2><span class="x-hi"><svg viewBox="0 0 24 24"><circle cx="8" cy="15.5" r="4.5"/><path d="M11.5 12L20 3.5M16.5 7l3 3"/></svg></span>Chave da API</h2>
             <div class="x-row"><input class="x-in" type="password" id="s-key" placeholder="Cole sua chave aqui" autocomplete="off" /><button class="x-primary" id="b-skey">Salvar</button></div>
             <p class="fineprint" id="s-keyhint">Sua chave fica só neste aparelho.</p>
             <div class="links"><button type="button" class="btn" id="b-slink">Criar link com minha chave</button></div>
             <div id="s-link"></div>
           </div>
           <div class="x-group">
-            <h2>Modelo</h2>
+            <h2><span class="x-hi"><svg viewBox="0 0 24 24"><path d="M4 8h9M19 8h1M4 16h3M13 16h7"/><circle cx="16" cy="8" r="2.2"/><circle cx="10" cy="16" r="2.2"/></svg></span>Modelo</h2>
             <select class="x-in" id="s-model"></select>
             <label class="x-field">Ou ID do modelo (opcional)<input class="x-in" id="s-model2" placeholder="Ex.: meta-llama/llama-3.3-70b-instruct:free" autocomplete="off" /></label>
             <p class="fineprint">Se o campo acima estiver preenchido, ele vale mais que a lista. No OpenRouter, os modelos grátis têm <b>:free</b> no ID.</p>
           </div>
           <div class="x-group">
-            <h2>Personalidade</h2>
+            <h2><span class="x-hi"><svg viewBox="0 0 24 24"><path d="M12 20.5s-7.8-4.8-9.6-9.2A5.3 5.3 0 0 1 12 6.4a5.3 5.3 0 0 1 9.6 5.1c-1.8 4.4-9.6 9-9.6 9z"/></svg></span>Personalidade</h2>
             <div class="x-chips" id="presets" style="justify-content:start"></div>
             <label class="x-field">Instrução do sistema<textarea class="x-in" id="s-sys"></textarea></label>
           </div>
           <div class="x-group">
-            <h2>Time de bots</h2>
+            <h2><span class="x-hi"><svg viewBox="0 0 24 24"><circle cx="9" cy="8.5" r="3.5"/><path d="M3.5 20c.7-3.4 2.9-5.2 5.5-5.2s4.8 1.8 5.5 5.2"/><path d="M15.5 5.4a3.5 3.5 0 0 1 0 6.3M17.8 15.2c1.3.8 2.2 2.3 2.6 4.3"/></svg></span>Time de bots</h2>
             <p class="fineprint">O HarllenBot responde ou chama o especialista certo. Para falar direto, comece a mensagem com @fin, @car, @est, @sau ou @nome.</p>
             <ul class="x-mem" id="bots"></ul>
             <div class="x-group x-bed" id="bot-ed" hidden>
@@ -920,25 +1071,25 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
             <div class="links"><button type="button" class="btn" id="b-newbot">Novo especialista</button></div>
           </div>
           <div class="x-group">
-            <h2>Memória</h2>
+            <h2><span class="x-hi"><svg viewBox="0 0 24 24"><path d="M7 3.5h10a1 1 0 0 1 1 1V21l-6-3.8L6 21V4.5a1 1 0 0 1 1-1z"/></svg></span>Memória</h2>
             <p class="fineprint">Fatos que o HarllenBot sempre lembra. Dica: comece uma mensagem com "lembre que…".</p>
             <ul class="x-mem" id="mem"></ul>
             <div class="x-row" id="f-mem"><input class="x-in" id="s-mem" placeholder="Ex.: Trabalho com logística" /><button type="button" class="x-primary" id="b-mem">Adicionar</button></div>
           </div>
           <div class="x-group">
-            <h2>Biblioteca</h2>
+            <h2><span class="x-hi"><svg viewBox="0 0 24 24"><path d="M12 6.2C10.3 4.7 8 4.2 4 4.2v14c4 0 6.3.5 8 2 1.7-1.5 4-2 8-2v-14c-4 0-6.3.5-8 2z"/><path d="M12 6.2v14"/></svg></span>Biblioteca</h2>
             <p class="fineprint" id="s-libinfo">Documentos que o HarllenBot consulta para responder: arquivos, Google Drive e ClickUp.</p>
             <div class="links"><button type="button" class="btn" id="b-lib2">Abrir Biblioteca</button></div>
           </div>
           <div class="x-group">
-            <h2>Backup</h2>
+            <h2><span class="x-hi"><svg viewBox="0 0 24 24"><path d="M12 3.5V14M8 10.5l4 4 4-4"/><path d="M4 17.5v1.8A1.7 1.7 0 0 0 5.7 21h12.6a1.7 1.7 0 0 0 1.7-1.7v-1.8"/></svg></span>Backup</h2>
             <p class="fineprint">Conversas, memória e configurações. A chave da API, os tokens e o Client ID nunca vão no arquivo.</p>
             <label class="x-check"><input type="checkbox" id="s-bkplib" /><span>Incluir Biblioteca no backup</span></label>
             <div class="links"><button class="btn" id="b-exp">Exportar backup</button><label class="btn" for="f-imp">Importar backup</label></div>
             <input type="file" id="f-imp" accept="application/json,.json" class="x-sr" />
           </div>
           <div class="x-group">
-            <h2>Sincronização (Google Drive)</h2>
+            <h2><span class="x-hi"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20.2 3.5v4.2h-4.2"/></svg></span>Sincronização (Google Drive)</h2>
             <p class="fineprint">Guarda conversas, memória, bots, configurações e a Biblioteca num arquivo (<b>harllenbot-sync.json</b>) no <b>seu</b> Google Drive, para abrir o HarllenBot em qualquer aparelho com tudo igual. Usa o mesmo Client ID do Drive da Biblioteca. Ao abrir outro aparelho, conecte o Drive e toque em sincronizar: as conversas e os documentos se juntam (nada se perde); nas configurações, vale a versão mais recente.</p>
             <label class="x-check"><input type="checkbox" id="s-syncon" /><span>Sincronizar automaticamente neste aparelho</span></label>
             <label class="x-check"><input type="checkbox" id="s-synckeys" /><span>Incluir chaves e tokens no arquivo de sincronização (menos seguro; sem isso, cada aparelho pede as chaves uma vez)</span></label>
@@ -946,11 +1097,11 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
             <p class="fineprint" id="s-syncinfo">Nunca sincronizado neste aparelho.</p>
           </div>
           <div class="x-group">
-            <h2>Instalar no celular</h2>
+            <h2><span class="x-hi"><svg viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M10.8 18.8h2.4"/></svg></span>Instalar no celular</h2>
             <p class="fineprint">No Chrome, toque em ⋮ e em 'Adicionar à tela inicial'.</p>
           </div>
           <div class="x-group">
-            <h2>Apagar tudo</h2>
+            <h2><span class="x-hi"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6.5 7l.8 12.2a1.8 1.8 0 0 0 1.8 1.7h5.8a1.8 1.8 0 0 0 1.8-1.7L17.5 7M9.5 7V4.5h5V7"/></svg></span>Apagar tudo</h2>
             <div class="links"><button class="btn" id="b-wipe">Apagar conversas</button></div>
           </div>
         </div>
@@ -964,7 +1115,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
             <p class="fineprint">A cada pergunta, o HarllenBot procura os trechos mais relevantes dos seus documentos e manda junto para a IA. Os documentos ficam só neste aparelho; só os trechos usados vão para o provedor de IA.</p>
           </div>
           <div class="x-group">
-            <h2>Adicionar</h2>
+            <h2><span class="x-hi"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.8"/><path d="M12 8.5v7M8.5 12h7"/></svg></span>Adicionar</h2>
             <div class="links"><label class="btn" for="l-file">Adicionar arquivos</label><button type="button" class="btn" id="b-lpaste">Colar texto</button></div>
             <input type="file" id="l-file" multiple accept=".txt,.md,.markdown,.csv,.json,.html,.htm,.pdf,.docx,text/plain,text/markdown,text/csv,application/json,text/html,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="x-sr" />
             <p class="fineprint">TXT, MD, CSV, JSON, HTML, PDF e DOCX. PDFs escaneados (só imagem) não têm texto para ler.</p>
@@ -976,13 +1127,13 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
             <p class="fineprint" id="l-prog" role="status" hidden></p>
           </div>
           <div class="x-group">
-            <h2>Documentos</h2>
+            <h2><span class="x-hi"><svg viewBox="0 0 24 24"><path d="M7 3.5h6.5L19 9v11a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 6 20V5A1.5 1.5 0 0 1 7 3.5z"/><path d="M13.5 3.5V9H19"/></svg></span>Documentos</h2>
             <input class="x-in" type="search" id="l-q" placeholder="Buscar na Biblioteca" autocomplete="off" aria-label="Buscar na Biblioteca" />
             <ul class="x-mem x-docs" id="l-docs"></ul>
             <div class="links"><button type="button" class="btn" id="b-lwipe">Apagar tudo</button></div>
           </div>
           <div class="x-group">
-            <h2>Google Drive</h2>
+            <h2><span class="x-hi"><svg viewBox="0 0 24 24"><path d="M7 18.5h9.7a4.2 4.2 0 0 0 .9-8.3A6.2 6.2 0 0 0 5.5 12a3.6 3.6 0 0 0 1.5 6.5z"/></svg></span>Google Drive</h2>
             <label class="x-field">Google OAuth Client ID<input class="x-in" id="l-gcid" placeholder="123456-abc.apps.googleusercontent.com" autocomplete="off" spellcheck="false" /><small>Fica só neste aparelho. O app lê seus arquivos e grava apenas o arquivo de sincronização dele; o login do Google dura cerca de 1 hora.</small></label>
             <details class="x-help">
               <summary>Como criar o Client ID (uma vez só)</summary>
@@ -1005,7 +1156,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
             </div>
           </div>
           <div class="x-group">
-            <h2>ClickUp</h2>
+            <h2><span class="x-hi"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.8"/><circle cx="12" cy="12" r="4.8"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/></svg></span>ClickUp</h2>
             <label class="x-field">Token pessoal do ClickUp<input class="x-in" type="password" id="l-cutok" placeholder="pk_…" autocomplete="off" spellcheck="false" /><small>Fica só neste aparelho. Para pegar: ClickUp › seu avatar › Settings › Apps › API Token.</small></label>
             <div class="links"><button type="button" class="btn" id="b-cuimp">Importar do ClickUp</button><button type="button" class="btn" id="b-cusync">Atualizar do ClickUp</button></div>
             <div class="x-group x-bed" id="l-cu" hidden>
@@ -2460,7 +2611,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   document.addEventListener("visibilitychange", function () { if (document.visibilityState === "hidden" && syncDirty && S.syncOn && syncTokenOk() && !syncBusy) syncNow(false); });
   document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible" && S.syncOn && syncTokenOk() && !syncBusy) syncNow(false); });
   /* auto-atualização: se sair versão nova, recarrega sozinho (uma vez) */
-  var APP_V = "20261008-10";
+  var APP_V = "20261008-11";
   setTimeout(function () {
     fetch(location.pathname, { cache: "no-store" }).then(function (r) { return r.text(); }).then(function (t) {
       var m = t.match(/var APP_V = "([^"]+)"/);
