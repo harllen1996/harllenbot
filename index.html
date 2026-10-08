@@ -1390,10 +1390,23 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   }
 
   /* API */
+  function appStatusText() {
+    var n = LIB.docs.length, src = { drive: 0, clickup: 0, file: 0, paste: 0 };
+    LIB.docs.forEach(function (d) { if (src[d.source] !== undefined) src[d.source]++; });
+    var parts = [];
+    if (src.drive) parts.push(src.drive + " do Drive");
+    if (src.clickup) parts.push(src.clickup + " do ClickUp");
+    if (src.file) parts.push(src.file + " arquivo(s)");
+    if (src.paste) parts.push(src.paste + " texto(s) colado(s)");
+    var lib = n ? ("Biblioteca com " + n + " documento(s)" + (parts.length ? " (" + parts.join(", ") + ")" : "")) : "Biblioteca vazia (nada importado ainda)";
+    var cu = S.clickupToken ? "token do ClickUp salvo neste aparelho" : "ClickUp sem token salvo";
+    var gd = !S.gdriveClientId ? "Google Drive ainda sem Client ID" : (syncTokenOk() ? "Google Drive conectado (sessão ativa)" : "Google Drive com Client ID salvo (sessão não ativa agora)");
+    return "\n\nSobre você e este app (HarllenBot, criado pelo próprio Harllen): você NÃO navega ao vivo no Google Drive nem no ClickUp dele; o app importa documentos desses serviços para a sua Biblioteca e sincroniza os dados dele (conversas, memória e Biblioteca) pelo Google Drive. Estado real neste aparelho: " + lib + "; " + cu + "; " + gd + "; última sincronização: " + (S.syncLast || "nunca") + ". Se ele perguntar se você tem acesso ao Drive ou ao ClickUp dele, responda com esse estado — nunca diga que não tem nenhuma integração. Se faltar importar ou conectar algo, oriente: menu ☰ › Biblioteca (Drive/ClickUp) e Configurações › Sincronização.";
+  }
   function sysText(b, rag) {
     var sp = S.bots.filter(function (x) { return x.id !== "main"; });
     var base = b.id === "main" ? S.sys + (sp.length ? "\n\nVocê coordena um time de especialistas: " + sp.map(function (x) { return x.name + " (id " + x.id + ") — " + (x.desc || ""); }).join("; ") + ". Quando a pergunta for claramente da área de um especialista, comece sua resposta com uma linha exatamente assim: [[CHAMAR:<id>]] seguida de uma frase curta explicando por que, e não responda o resto. Caso contrário responda normalmente." : "") : (b.prompt || SP(b.name, (b.desc || "assuntos gerais") + "."));
-    return base + (S.mem.length ? "\n\nFatos que você sabe sobre o Harllen:\n" + S.mem.map(function (f) { return "- " + f; }).join("\n") : "") + (rag && rag.text ? "\n\n" + rag.text : "");
+    return base + (S.mem.length ? "\n\nFatos que você sabe sobre o Harllen:\n" + S.mem.map(function (f) { return "- " + f; }).join("\n") : "") + (rag && rag.text ? "\n\n" + rag.text : "") + appStatusText();
   }
   function contents(msgs, forId) {
     var out = [];
