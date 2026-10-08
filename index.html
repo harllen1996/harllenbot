@@ -855,18 +855,26 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
         <header class="x-bar"><h1>Configurações</h1><button class="x-ib" id="b-close" aria-label="Fechar">✕</button></header>
         <div class="x-sbody">
           <div class="x-group">
+            <h2>Provedor de IA</h2>
+            <select class="x-in" id="s-prov">
+              <option value="google">Google (Gemini/Gemma) — grátis</option>
+              <option value="openrouter">OpenRouter — vários modelos grátis</option>
+              <option value="groq">Groq — grátis e muito rápido</option>
+            </select>
+            <p class="fineprint">Cada provedor usa a sua própria chave. Todas ficam salvas só neste aparelho.</p>
+          </div>
+          <div class="x-group">
             <h2>Chave da API</h2>
             <div class="x-row"><input class="x-in" type="password" id="s-key" placeholder="Cole sua chave aqui" autocomplete="off" /><button class="x-primary" id="b-skey">Salvar</button></div>
-            <p class="fineprint">Sua chave fica só neste aparelho. Pegue uma grátis em <a class="link" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>.</p>
+            <p class="fineprint" id="s-keyhint">Sua chave fica só neste aparelho.</p>
             <div class="links"><button type="button" class="btn" id="b-slink">Criar link com minha chave</button></div>
             <div id="s-link"></div>
           </div>
           <div class="x-group">
             <h2>Modelo</h2>
-            <select class="x-in" id="s-model">
-              <option value="gemma-4-26b-a4b-it">Gemma 4 26B (rápido)</option>
-              <option value="gemma-4-31b-it">Gemma 4 31B (mais inteligente)</option>
-            </select>
+            <select class="x-in" id="s-model"></select>
+            <label class="x-field">Ou ID do modelo (opcional)<input class="x-in" id="s-model2" placeholder="Ex.: meta-llama/llama-3.3-70b-instruct:free" autocomplete="off" /></label>
+            <p class="fineprint">Se o campo acima estiver preenchido, ele vale mais que a lista. No OpenRouter, os modelos grátis têm <b>:free</b> no ID.</p>
           </div>
           <div class="x-group">
             <h2>Personalidade</h2>
@@ -1083,7 +1091,27 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     "Profissional": "Você é o HarllenBot, assistente pessoal do Harllen. Responda sempre em português do Brasil, em tom profissional, objetivo e cordial. Comece pela resposta, organize em tópicos quando ajudar e evite floreios. Se não souber algo, diga com honestidade. Você não navega na internet.",
     "Professor": "Você é o HarllenBot, assistente pessoal do Harllen, no papel de professor paciente. Responda sempre em português do Brasil. Explique passo a passo, com exemplos do dia a dia e analogias simples, e verifique o entendimento no final com uma pergunta curta. Use markdown quando ajudar. Se não souber algo, diga com honestidade. Você não navega na internet."
   };
-  var MODELS = { "gemma-4-26b-a4b-it": "Gemma 4 26B (rápido)", "gemma-4-31b-it": "Gemma 4 31B (mais inteligente)" };
+  var PROVIDERS = {
+    google: { name: "Google (Gemini/Gemma)", keyUrl: "https://aistudio.google.com/apikey", keySite: "aistudio.google.com/apikey" },
+    openrouter: { name: "OpenRouter", base: "https://openrouter.ai/api/v1", keyUrl: "https://openrouter.ai/keys", keySite: "openrouter.ai/keys" },
+    groq: { name: "Groq", base: "https://api.groq.com/openai/v1", keyUrl: "https://console.groq.com/keys", keySite: "console.groq.com/keys" }
+  };
+  var MODELS = {
+    google: { "gemma-4-26b-a4b-it": "Gemma 4 26B (rápido)", "gemma-4-31b-it": "Gemma 4 31B (mais inteligente)" },
+    openrouter: {
+      "openrouter/free": "Automático — OpenRouter escolhe um modelo grátis",
+      "nvidia/nemotron-3-ultra-550b-a55b:free": "Nemotron 3 Ultra 550B (grátis)",
+      "google/gemma-4-31b-it:free": "Gemma 4 31B (grátis)",
+      "google/gemma-4-26b-a4b-it:free": "Gemma 4 26B (grátis)",
+      "nvidia/nemotron-3-super-120b-a12b:free": "Nemotron 3 Super 120B (grátis)",
+      "thinkingmachines/inkling:free": "Inkling (grátis, contexto gigante)"
+    },
+    groq: {
+      "openai/gpt-oss-120b": "GPT-OSS 120B (grátis, rápido)",
+      "openai/gpt-oss-20b": "GPT-OSS 20B (grátis, rápido)",
+      "qwen/qwen3.8-27b": "Qwen 3.8 27B (grátis)"
+    }
+  };
   var SUGG = ["Me ajuda a planejar minha semana", "Explique algo difícil de forma simples", "Escreva um e-mail profissional", "Ideias de projeto para logística reversa"];
 
   /* storage with in-memory fallback */
@@ -1093,7 +1121,16 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   function sset(k, v) { var s = JSON.stringify(v); memStore[k] = s; if (!canStore) return true; try { localStorage.setItem(k, s); return true; } catch (e) { return false; } }
 
   var S = sget("hb_settings", {}) || {};
-  S.model = MODELS[S.model] ? S.model : "gemma-4-26b-a4b-it";
+  S.provider = PROVIDERS[S.provider] ? S.provider : "google";
+  S.keys = S.keys && typeof S.keys === "object" ? S.keys : {};
+  if (typeof S.keys.openrouter !== "string") S.keys.openrouter = "";
+  if (typeof S.keys.groq !== "string") S.keys.groq = "";
+  S.pm = S.pm && typeof S.pm === "object" ? S.pm : {};
+  if (typeof S.model === "string" && !S.pm.google) S.pm.google = S.model;
+  Object.keys(MODELS).forEach(function (p) { if (!MODELS[p][S.pm[p]]) S.pm[p] = Object.keys(MODELS[p])[0]; });
+  S.cust = S.cust && typeof S.cust === "object" ? S.cust : {};
+  ["google", "openrouter", "groq"].forEach(function (p) { if (typeof S.cust[p] !== "string") S.cust[p] = ""; });
+  S.model = S.pm[S.provider];
   S.sys = typeof S.sys === "string" && S.sys.trim() ? S.sys : DEF_SYS;
   S.mem = Array.isArray(S.mem) ? S.mem : [];
   var SP = function (n, area) { return "Você é " + n + ", especialista do time do HarllenBot. Responda sempre em português do Brasil, de forma direta, prática e calorosa. Sua área: " + area + " Use markdown quando ajudar. Se não souber algo, diga com honestidade. Você não navega na internet."; };
@@ -1206,14 +1243,14 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     return '<div class="x-msg x-msg--model" data-i="' + idx + '"><div class="x-who"><span class="x-av">' + esc(b.av) + "</span>" + esc(b.name) + '</div><div class="x-bub">' + md(m.text) + '</div><div class="x-tools"><button class="x-ib x-copymsg" type="button">Copiar</button>' + ("speechSynthesis" in window ? '<button class="x-ib x-speak" type="button">Falar</button>' : "") + "</div></div>";
   }
   function render() {
-    $("t-model").textContent = MODELS[S.model];
-    $("b-new").hidden = !KEY; renderPick();
-    if (!KEY) { renderWelcome(); renderConvs(); return; }
+    $("t-model").textContent = modelLabel();
+    $("b-new").hidden = !curKey(); renderPick();
+    if (!curKey()) { renderWelcome(); renderConvs(); return; }
     var c = cur();
     if (!c.msgs.length && !busy) {
       msgsEl.innerHTML = '<div class="x-empty"><div class="x-logo">H</div><h2>Como posso ajudar, Harllen?</h2><div class="x-chips">' + SUGG.map(function (s) { return '<button class="x-chip x-sugg" type="button">' + s + "</button>"; }).join("") + '</div><div class="x-team">' +
         S.bots.map(function (b) { return '<button type="button" class="x-tcard' + (b.id === S.sel ? " is-on" : "") + '" data-bot="' + esc(b.id) + '"><span class="x-av">' + esc(b.av) + "</span><span><b>" + esc(b.name) + "</b><small>" + esc(b.desc || "") + "</small></span></button>"; }).join("") + "</div>" +
-        (justSaved ? '<div class="x-klink"><p>Chave salva! Crie um link para não precisar colar a chave de novo:</p><div class="links"><button type="button" class="btn" id="b-wlink">Criar link com minha chave</button></div><div id="w-link"></div></div>' : "") + "</div>";
+        (justSaved && S.provider === "google" ? '<div class="x-klink"><p>Chave salva! Crie um link para não precisar colar a chave de novo:</p><div class="links"><button type="button" class="btn" id="b-wlink">Criar link com minha chave</button></div><div id="w-link"></div></div>' : "") + "</div>";
       if (justSaved) $("b-wlink").onclick = function () { showKeyLink($("w-link")); };
     } else {
       msgsEl.innerHTML = c.msgs.map(msgHTML).join("");
@@ -1223,14 +1260,19 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   }
   function renderWelcome() {
     msgsEl.innerHTML = '<div class="x-empty x-welcome"><div class="x-logo">H</div><h2>Olá! Eu sou o HarllenBot.</h2>' +
-      '<p>Para conversar comigo, você precisa de uma chave grátis do Google:</p><ol>' +
-      '<li>Abra <a class="link" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> e entre com sua conta Google.</li>' +
-      '<li>Toque em <strong>Criar chave de API</strong> (Create API key).</li><li>Copie a chave e cole aqui embaixo.</li></ol>' +
-      '<div class="x-field" id="f-key"><label for="w-key">Sua chave da API</label><div class="x-row"><input class="x-in" type="password" id="w-key" placeholder="Cole sua chave aqui" autocomplete="off" /><button type="button" class="x-primary" id="b-wkey">Salvar</button></div><small>Sua chave fica só neste aparelho.</small></div></div>';
-    $("b-wkey").onclick = function () { var v = $("w-key").value.trim(); if (v) { justSaved = true; setKey(v); } else { toast("Cole sua chave da API primeiro."); $("w-key").focus(); } };
+      '<p>Para conversar comigo, você precisa de uma chave de API gratuita. Escolha o provedor e cole a sua chave:</p>' +
+      '<div class="x-field"><label for="w-prov">Provedor</label><select class="x-in" id="w-prov">' +
+      Object.keys(PROVIDERS).map(function (p) { return '<option value="' + p + '"' + (p === S.provider ? " selected" : "") + ">" + esc(PROVIDERS[p].name) + "</option>"; }).join("") + "</select></div>" +
+      '<div class="x-field" id="f-key"><label for="w-key">Sua chave da API</label><div class="x-row"><input class="x-in" type="password" id="w-key" placeholder="Cole sua chave aqui" autocomplete="off" /><button type="button" class="x-primary" id="b-wkey">Salvar</button></div>' +
+      '<small>Sua chave fica só neste aparelho. Pegue grátis: <a class="link" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a> · <a class="link" href="https://openrouter.ai/keys" target="_blank" rel="noopener">OpenRouter</a> · <a class="link" href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq</a></small></div></div>';
+    $("w-prov").onchange = function () { S.provider = this.value; S.model = S.pm[S.provider]; saveSettings(); };
+    $("b-wkey").onclick = function () { var v = $("w-key").value.trim(); if (v) { justSaved = S.provider === "google"; setKey(v); } else { toast("Cole sua chave da API primeiro."); $("w-key").focus(); } };
     $("w-key").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); $("b-wkey").click(); } });
   }
-  function setKey(v) { KEY = v; sset("hb_key", v); if ($("s-link")) $("s-link").innerHTML = ""; if ($("s-key")) $("s-key").value = ""; toast("Chave salva"); render(); }
+  function curKey() { return S.provider === "google" ? KEY : (S.keys[S.provider] || ""); }
+  function effModel() { var c = (S.cust[S.provider] || "").trim(); return c || S.pm[S.provider]; }
+  function modelLabel() { var c = (S.cust[S.provider] || "").trim(); return c || MODELS[S.provider][S.pm[S.provider]] || S.pm[S.provider]; }
+  function setKey(v) { if (S.provider === "google") { KEY = v; sset("hb_key", v); } else { S.keys[S.provider] = v; saveSettings(); } if ($("s-link")) $("s-link").innerHTML = ""; if ($("s-key")) $("s-key").value = ""; toast("Chave salva"); render(); }
   function renderConvs() {
     $("convs").innerHTML = convs.map(function (c) {
       return '<li class="' + (c.id === curId ? "is-cur" : "") + '" data-id="' + c.id + '"><button class="x-open" type="button">' + esc(c.title) + '</button><button class="x-ib x-del" type="button" aria-label="Apagar conversa"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button></li>';
@@ -1258,10 +1300,83 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   var CALL = /\[\[CHAMAR:\s*([^\]\s]+)\s*\]\]/;
   function vis(t) { return t.replace(CALL, "").replace(/\[(\[[A-Za-z:]*)?$/, "").replace(/^\s+/, ""); }
   function errMsg(st) {
-    if (st === 400 || st === 403) return "Chave inválida. Confira sua chave da API nas configurações.";
+    if (st === 401 || st === 403) return "Chave inválida. Confira a chave do provedor " + PROVIDERS[S.provider].name + " nas configurações.";
+    if (st === 400) return "O provedor recusou o pedido (erro 400). Se você anexou uma imagem, experimente um modelo que aceite imagens.";
+    if (st === 404) return "Modelo não encontrado neste provedor. Confira o ID do modelo nas configurações.";
     if (st === 429) return "Limite gratuito atingido. Espere um pouco e tente de novo.";
-    if (st >= 500) return "Erro do Google. Tente de novo em instantes.";
+    if (st >= 500) return "Erro no provedor. Tente de novo em instantes.";
     return "Algo deu errado (erro " + st + ").";
+  }
+  function oaMessages(msgs, forId, b) {
+    var out = [{ role: "system", content: sysText(b) }];
+    msgs.forEach(function (m) {
+      if (m.call || !(m.text || m.img)) return;
+      var t = m.text;
+      if (t && m.role === "model" && (m.botId || "main") !== forId) t = "[" + botById(m.botId).name + "]: " + t;
+      var content;
+      if (m.img) { content = []; if (t) content.push({ type: "text", text: t }); content.push({ type: "image_url", image_url: { url: m.img.url } }); }
+      else content = t || "";
+      var role = m.role === "model" ? "assistant" : "user";
+      var last = out[out.length - 1];
+      if (last.role === role && typeof last.content === "string" && typeof content === "string") last.content += "\n" + content;
+      else out.push({ role: role, content: content });
+    });
+    return out;
+  }
+  async function streamGoogle(b, bot, el, hist) {
+    var res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + effModel() + ":streamGenerateContent?alt=sse", {
+      method: "POST", signal: busy.signal,
+      headers: { "x-goog-api-key": KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ systemInstruction: { parts: [{ text: sysText(b) }] }, contents: hist, generationConfig: { temperature: 0.8, maxOutputTokens: 8192 } })
+    });
+    if (!res.ok) throw { status: res.status };
+    var reader = res.body.getReader(), dec = new TextDecoder(), buf = "";
+    for (;;) {
+      var r = await reader.read(); if (r.done) break;
+      buf += dec.decode(r.value, { stream: true });
+      var lines = buf.split("\n"); buf = lines.pop();
+      var changed = false;
+      lines.forEach(function (line) {
+        if (line.indexOf("data:") !== 0) return;
+        try {
+          var j = JSON.parse(line.slice(5).trim());
+          var parts = (((j.candidates || [])[0] || {}).content || {}).parts || [];
+          parts.forEach(function (p) { if (!p.thought && p.text) { bot.text += p.text; changed = true; } });
+        } catch (e) {}
+      });
+      if (changed) { var nb = nearBottom(); el.innerHTML = md(b.id === "main" ? vis(bot.text) : bot.text); if (nb) toBottom(); }
+      var cm = b.id === "main" && bot.text.match(CALL);
+      if (cm && /\S[^\n]*\n/.test(bot.text.slice(cm.index + cm[0].length).replace(/^\s+/, ""))) { try { reader.cancel(); } catch (e) {} break; }
+    }
+  }
+  async function streamOA(b, bot, el) {
+    var P = PROVIDERS[S.provider];
+    var hdrs = { "Authorization": "Bearer " + curKey(), "Content-Type": "application/json" };
+    if (S.provider === "openrouter") { hdrs["HTTP-Referer"] = location.href; hdrs["X-Title"] = "HarllenBot"; }
+    var res = await fetch(P.base + "/chat/completions", {
+      method: "POST", signal: busy.signal, headers: hdrs,
+      body: JSON.stringify({ model: effModel(), messages: oaMessages(cur().msgs, b.id, b), stream: true, temperature: 0.8, max_tokens: 8192 })
+    });
+    if (!res.ok) throw { status: res.status };
+    var reader = res.body.getReader(), dec = new TextDecoder(), buf = "";
+    for (;;) {
+      var r = await reader.read(); if (r.done) break;
+      buf += dec.decode(r.value, { stream: true });
+      var lines = buf.split("\n"); buf = lines.pop();
+      var changed = false;
+      lines.forEach(function (line) {
+        if (line.indexOf("data:") !== 0) return;
+        var d = line.slice(5).trim();
+        if (!d || d === "[DONE]") return;
+        try {
+          var j = JSON.parse(d), dl = (((j.choices || [])[0] || {}).delta || {});
+          if (dl.content) { bot.text += dl.content; changed = true; }
+        } catch (e) {}
+      });
+      if (changed) { var nb = nearBottom(); el.innerHTML = md(b.id === "main" ? vis(bot.text) : bot.text); if (nb) toBottom(); }
+      var cm = b.id === "main" && bot.text.match(CALL);
+      if (cm && /\S[^\n]*\n/.test(bot.text.slice(cm.index + cm[0].length).replace(/^\s+/, ""))) { try { reader.cancel(); } catch (e) {} break; }
+    }
   }
   function setBusy(on) {
     $("b-send").setAttribute("aria-label", on ? "Parar" : "Enviar");
@@ -1275,34 +1390,11 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     var el = msgsEl.lastElementChild.querySelector(".x-bub"); el.classList.add("x-typing");
     busy = new AbortController(); setBusy(true);
     try {
-      var res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + S.model + ":streamGenerateContent?alt=sse", {
-        method: "POST", signal: busy.signal,
-        headers: { "x-goog-api-key": KEY, "Content-Type": "application/json" },
-        body: JSON.stringify({ systemInstruction: { parts: [{ text: sysText(b) }] }, contents: hist, generationConfig: { temperature: 0.8, maxOutputTokens: 8192 } })
-      });
-      if (!res.ok) throw { status: res.status };
-      var reader = res.body.getReader(), dec = new TextDecoder(), buf = "";
-      for (;;) {
-        var r = await reader.read(); if (r.done) break;
-        buf += dec.decode(r.value, { stream: true });
-        var lines = buf.split("\n"); buf = lines.pop();
-        var changed = false;
-        lines.forEach(function (line) {
-          if (line.indexOf("data:") !== 0) return;
-          try {
-            var j = JSON.parse(line.slice(5).trim());
-            var parts = (((j.candidates || [])[0] || {}).content || {}).parts || [];
-            parts.forEach(function (p) { if (!p.thought && p.text) { bot.text += p.text; changed = true; } });
-          } catch (e) {}
-        });
-        if (changed) { var nb = nearBottom(); el.innerHTML = md(b.id === "main" ? vis(bot.text) : bot.text); if (nb) toBottom(); }
-        var cm = b.id === "main" && bot.text.match(CALL);
-        if (cm && /\S[^\n]*\n/.test(bot.text.slice(cm.index + cm[0].length).replace(/^\s+/, ""))) { try { reader.cancel(); } catch (e) {} break; }
-      }
+      if (S.provider === "google") await streamGoogle(b, bot, el, hist); else await streamOA(b, bot, el);
       ok = true;
     } catch (e) {
       if (e && e.name === "AbortError") { if (!bot.text) c.msgs.pop(); }
-      else { if (!bot.text) c.msgs.pop(); lastErr = e && e.status ? errMsg(e.status) : "Sem conexão com a internet ou o Google não respondeu."; }
+      else { if (!bot.text) c.msgs.pop(); lastErr = e && e.status ? errMsg(e.status) : "Sem conexão com a internet ou o provedor não respondeu."; }
     }
     var mm = b.id === "main" && bot.text.match(CALL), tgt = ok && mm && S.bots.find(function (x) { return x.id === mm[1] && x.id !== "main"; });
     if (mm) { if (tgt) { bot.call = tgt.id; bot.text = bot.text.slice(mm.index + mm[0].length).trim().split("\n")[0].trim().slice(0, 240); } else bot.text = bot.text.replace(CALL, "").trim(); }
@@ -1320,7 +1412,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   function send(text) {
     text = (text || "").trim();
     if (busy) return;
-    if (!KEY) { toast("Salve sua chave da API primeiro."); var wk = $("w-key"); if (wk) wk.focus(); return; }
+    if (!curKey()) { toast("Salve sua chave da API primeiro."); var wk = $("w-key"); if (wk) wk.focus(); return; }
     if (!text && !attached) { toast("Escreva uma mensagem primeiro."); inp.focus(); return; }
     var c = cur();
     var m = text.match(/^(lembre|lembra) que\s+(.+)/i);
@@ -1389,13 +1481,26 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   $("b-banner").onclick = function () { $("banner").hidden = true; };
 
   /* settings */
-  function openSet() { closeDrawer(); $("s-model").value = S.model; $("s-sys").value = S.sys; $("s-key").placeholder = KEY ? "Chave salva (••••" + KEY.slice(-4) + ")" : "Cole sua chave aqui"; renderPresets(); renderMem(); renderBots(); closeEd(); $("sheet").classList.add("is-open"); }
-  function closeSet() { var v = $("s-sys").value.trim(); S.sys = v || DEF_SYS; saveSettings(); $("sheet").classList.remove("is-open"); render(); }
+  function syncProvUI() {
+    var P = PROVIDERS[S.provider];
+    $("s-model").innerHTML = Object.keys(MODELS[S.provider]).map(function (id) { return '<option value="' + esc(id) + '">' + esc(MODELS[S.provider][id]) + "</option>"; }).join("");
+    $("s-model").value = S.pm[S.provider];
+    $("s-model2").value = S.cust[S.provider] || "";
+    var ck = curKey();
+    $("s-key").placeholder = ck ? "Chave salva (••••" + ck.slice(-4) + ")" : "Cole sua chave aqui";
+    $("s-keyhint").innerHTML = 'Sua chave fica só neste aparelho. Pegue uma grátis em <a class="link" href="' + P.keyUrl + '" target="_blank" rel="noopener">' + esc(P.keySite) + "</a>.";
+    $("b-slink").style.display = S.provider === "google" ? "" : "none";
+    if (S.provider !== "google") $("s-link").innerHTML = "";
+  }
+  function openSet() { closeDrawer(); $("s-prov").value = S.provider; syncProvUI(); $("s-sys").value = S.sys; renderPresets(); renderMem(); renderBots(); closeEd(); $("sheet").classList.add("is-open"); }
+  function closeSet() { var v = $("s-sys").value.trim(); S.sys = v || DEF_SYS; S.cust[S.provider] = $("s-model2").value.trim(); saveSettings(); $("sheet").classList.remove("is-open"); render(); }
   $("b-set").onclick = openSet; $("b-set2").onclick = openSet; $("b-close").onclick = closeSet;
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") { if ($("sheet").classList.contains("is-open")) closeSet(); else closeDrawer(); } });
   $("b-slink").onclick = function () { showKeyLink($("s-link")); };
-  $("b-skey").onclick = function () { var v = $("s-key").value.trim(); if (v) { setKey(v); $("s-key").placeholder = "Chave salva (••••" + v.slice(-4) + ")"; } };
-  $("s-model").onchange = function () { S.model = this.value; saveSettings(); $("t-model").textContent = MODELS[S.model]; };
+  $("b-skey").onclick = function () { var v = $("s-key").value.trim(); if (v) { setKey(v); syncProvUI(); } else toast("Cole a chave do provedor " + PROVIDERS[S.provider].name + " primeiro."); };
+  $("s-prov").onchange = function () { S.provider = this.value; S.model = S.pm[S.provider]; saveSettings(); syncProvUI(); render(); };
+  $("s-model").onchange = function () { S.pm[S.provider] = this.value; S.model = this.value; saveSettings(); $("t-model").textContent = modelLabel(); };
+  $("s-model2").onchange = function () { S.cust[S.provider] = this.value.trim(); saveSettings(); $("t-model").textContent = modelLabel(); };
   $("s-sys").oninput = function () { S.sys = this.value; saveSettings(); renderPresets(); };
   function renderPresets() {
     $("presets").innerHTML = Object.keys(PRESETS).map(function (k) { return '<button type="button" class="x-chip' + (PRESETS[k] === $("s-sys").value ? " is-on" : "") + '">' + k + "</button>"; }).join("");
@@ -1505,7 +1610,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
 
   /* backup (never the key) */
   $("b-exp").onclick = function () {
-    var data = { app: "HarllenBot", version: 1, exported: new Date().toISOString(), settings: { model: S.model, sys: S.sys, mem: S.mem, bots: S.bots, sel: S.sel }, convs: convs };
+    var data = { app: "HarllenBot", version: 2, exported: new Date().toISOString(), settings: { provider: S.provider, model: S.pm[S.provider], sys: S.sys, mem: S.mem, bots: S.bots, sel: S.sel }, convs: convs };
     var a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: "application/json" }));
     a.download = "harllenbot-backup-" + new Date().toISOString().slice(0, 10) + ".json";
@@ -1517,7 +1622,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     f.text().then(function (t) {
       var d = JSON.parse(t);
       if (!d || !Array.isArray(d.convs)) throw 0;
-      if (d.settings) { if (MODELS[d.settings.model]) S.model = d.settings.model; if (d.settings.sys) S.sys = d.settings.sys; if (Array.isArray(d.settings.mem)) S.mem = d.settings.mem.map(String); if (Array.isArray(d.settings.bots) && d.settings.bots.some(function (b) { return b && b.id === "main"; })) { S.bots = d.settings.bots.filter(function (b) { return b && b.id; }); S.sel = botById(d.settings.sel).id; } }
+      if (d.settings) { if (PROVIDERS[d.settings.provider]) S.provider = d.settings.provider; if (typeof d.settings.model === "string" && d.settings.model) { S.pm[S.provider] = d.settings.model; if (S.provider === "google") S.model = d.settings.model; } if (d.settings.sys) S.sys = d.settings.sys; if (Array.isArray(d.settings.mem)) S.mem = d.settings.mem.map(String); if (Array.isArray(d.settings.bots) && d.settings.bots.some(function (b) { return b && b.id === "main"; })) { S.bots = d.settings.bots.filter(function (b) { return b && b.id; }); S.sel = botById(d.settings.sel).id; } }
       var ids = convs.map(function (c) { return c.id; });
       d.convs.forEach(function (c) { if (c && c.id && Array.isArray(c.msgs) && ids.indexOf(c.id) < 0) convs.push({ id: c.id, title: String(c.title || "Conversa"), msgs: c.msgs, ts: c.ts || 0 }); });
       convs = convs.filter(function (c) { return c.msgs.length || c.id === curId; });
