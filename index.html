@@ -1547,7 +1547,8 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     if (m.role === "user") return '<div class="x-msg x-msg--user">' + (m.img && validImgUrl(m.img.url) ? '<img class="x-img" alt="Imagem enviada" src="' + esc(m.img.url) + '">' : "") + (m.text ? '<div class="x-bub">' + esc(String(m.text)) + "</div>" : "") + "</div>";
     var b = botById(m.botId);
     if (m.call) { var t = botById(m.call); return '<div class="x-sys">' + esc(b.name) + " chamou " + esc(t.av) + " <b>" + esc(t.name) + "</b>" + (m.text ? "<br>" + esc(m.text) : "") + "</div>"; }
-    return '<div class="x-msg x-msg--model' + (m.synth ? " x-msg--synth" : "") + '" data-i="' + idx + '"><div class="x-who"><span class="x-av">' + esc(b.av) + "</span>" + esc(b.name) + (m.synth ? ' <span class="x-synth-tag">síntese</span>' : "") + '</div><div class="x-bub">' + md(m.text) + '</div>' + (Array.isArray(m.src) && m.src.length ? '<div class="x-src">Fontes: ' + esc(m.src.map(String).join(" · ")) + "</div>" : "") + '<div class="x-tools"><button class="x-ib x-copymsg" type="button">Copiar</button>' + ("speechSynthesis" in window ? '<button class="x-ib x-speak" type="button">Falar</button>' : "") + '<button class="x-ib x-libmsg" type="button">Salvar na Biblioteca</button></div></div>';
+    var cb = cur(), showRegen = !busy && !lastErr && cb && !cb.group && idx === cb.msgs.length - 1;
+    return '<div class="x-msg x-msg--model' + (m.synth ? " x-msg--synth" : "") + '" data-i="' + idx + '"><div class="x-who"><span class="x-av">' + esc(b.av) + "</span>" + esc(b.name) + (m.synth ? ' <span class="x-synth-tag">síntese</span>' : "") + '</div><div class="x-bub">' + md(m.text) + '</div>' + (Array.isArray(m.src) && m.src.length ? '<div class="x-src">Fontes: ' + esc(m.src.map(String).join(" · ")) + "</div>" : "") + '<div class="x-tools"><button class="x-ib x-copymsg" type="button">Copiar</button>' + ("speechSynthesis" in window ? '<button class="x-ib x-speak" type="button">Falar</button>' : "") + '<button class="x-ib x-libmsg" type="button">Salvar na Biblioteca</button>' + (showRegen ? '<button class="x-ib x-regen" type="button">Regenerar</button>' : "") + "</div></div>";
   }
   function render() {
     $("t-model").textContent = modelLabel();
@@ -1790,9 +1791,20 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     var box = t.closest(".x-msg"); if (!box) return;
     var m = cur().msgs[+box.dataset.i]; if (!m) return;
     if (t.classList.contains("x-copymsg")) copy(m.text, t);
+    if (t.classList.contains("x-regen")) regenLast();
     if (t.classList.contains("x-libmsg")) saveMsgToLib(m, t);
     if (t.classList.contains("x-speak")) speak(m.text, t);
   });
+  /* Regenerar: some com a ultima resposta e gera outra pro mesmo bot.
+     Fora das mesas-redondas (la quem orquestra e o runGroup). */
+  function regenLast() {
+    var c = cur(); if (!c || c.group || busy || grpActive) return;
+    var last = c.msgs[c.msgs.length - 1];
+    if (!last || last.role !== "model") return;
+    var bid = last.botId || "main";
+    c.msgs.pop(); saveConvs(); render();
+    generate(bid);
+  }
   /* "Salvar na Biblioteca" (conceito OpenDots: resposta aprovada vira conhecimento):
      a resposta vira documento local (fonte "Conversa", titulo da pergunta anterior),
      entra no indice de busca e sincroniza junto com os demais documentos. */
@@ -1804,7 +1816,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     if (!txt) return;
     var clean = cleanText(txt).trim();
     if (LIB.docs.some(function (d) { return d.id === m.libDoc || String(d.text || "").trim() === clean; })) { toast("Essa resposta já está na Biblioteca ✓"); return; }
-    var b = botById(m.bot || "main");
+    var b = botById(m.botId || "main");
     var prev = "", ix = c.msgs.indexOf(m);
     for (var j = ix - 1; j >= 0; j--) { if (c.msgs[j].role === "user" && c.msgs[j].text) { prev = String(c.msgs[j].text).trim(); break; } }
     var title = (prev || txt.split("\n")[0]).replace(/\s+/g, " ").slice(0, 80) || ("Resposta de " + b.name);
@@ -2840,7 +2852,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     gdSilent().then(function (ok) { if (ok) syncNow(false); });
   });
   /* auto-atualização: se sair versão nova, recarrega sozinho (uma vez) */
-  var APP_V = "20261008-30";
+  var APP_V = "20261008-31";
   setTimeout(function () {
     fetch(location.pathname, { cache: "no-store" }).then(function (r) { return r.text(); }).then(function (t) {
       var m = t.match(/var APP_V = "([^"]+)"/);
