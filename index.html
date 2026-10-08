@@ -994,6 +994,15 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
       .x-msg--synth .x-bub { border: 1.5px solid light-dark(rgba(124, 92, 255, 0.55), rgba(124, 92, 255, 0.6)); background: linear-gradient(180deg, var(--acc-soft), rgba(124, 92, 255, 0) 55%), light-dark(#ffffff, #1e1e26); }
       .x-synth-tag { font: var(--type-caption); font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--acc-ink); background: var(--acc-soft); border-radius: var(--r-pill); padding: 2px 8px; }
 
+      /* "Pensando…" com pontinhos (pedido do Harllen: igual ao da Bulma) */
+      .x-think { display: inline-flex; align-items: baseline; gap: 7px; color: var(--label-2); font: var(--type-callout); }
+      .x-dots { display: inline-flex; gap: 3px; }
+      .x-dots i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--acc-1); opacity: 0.35; animation: hb-dots 1.15s ease-in-out infinite; }
+      .x-dots i:nth-child(2) { animation-delay: 0.15s; }
+      .x-dots i:nth-child(3) { animation-delay: 0.3s; }
+      @keyframes hb-dots { 0%, 60%, 100% { transform: translateY(0); opacity: 0.35; } 30% { transform: translateY(-4px); opacity: 1; } }
+      .x-bub.x-typing:has(.x-think)::after { content: none; }
+
       @media (prefers-reduced-motion: reduce) {
         .page.x-app *, .page.x-app *::before, .page.x-app *::after { animation-duration: 0.001s !important; animation-iteration-count: 1 !important; transition-duration: 0.001s !important; }
       }
@@ -1701,6 +1710,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     var bot = { role: "model", text: "", botId: b.id, mid: uid() };
     c.msgs.push(bot); render();
     var el = msgsEl.lastElementChild.querySelector(".x-bub"); el.classList.add("x-typing");
+    el.innerHTML = '<span class="x-think">Pensando<span class="x-dots"><i></i><i></i><i></i></span></span>';
     busy = new AbortController(); setBusy(true);
     var rag = null;
     try {
@@ -2776,7 +2786,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     gdSilent().then(function (ok) { if (ok) syncNow(false); });
   });
   /* auto-atualização: se sair versão nova, recarrega sozinho (uma vez) */
-  var APP_V = "20261008-27";
+  var APP_V = "20261008-28";
   setTimeout(function () {
     fetch(location.pathname, { cache: "no-store" }).then(function (r) { return r.text(); }).then(function (t) {
       var m = t.match(/var APP_V = "([^"]+)"/);
