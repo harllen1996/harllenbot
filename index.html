@@ -1545,7 +1545,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
       msgsEl.innerHTML = '<div class="x-empty"><div class="x-logo">H</div><h2>Como posso ajudar, Harllen?</h2><div class="x-chips">' + SUGG.map(function (s) { return '<button class="x-chip x-sugg" type="button">' + s + "</button>"; }).join("") + '</div><div class="x-team">' +
         S.bots.map(function (b) { return '<button type="button" class="x-tcard' + (b.id === S.sel ? " is-on" : "") + '" data-bot="' + esc(b.id) + '"><span class="x-av">' + esc(b.av) + "</span><span><b>" + esc(b.name) + "</b><small>" + esc(b.desc || "") + "</small></span></button>"; }).join("") + "</div>" +
         (justSaved && S.provider === "google" ? '<div class="x-klink"><p>Chave salva! Crie um link para não precisar colar a chave de novo:</p><div class="links"><button type="button" class="btn" id="b-wlink">Criar link com minha chave</button></div><div id="w-link"></div></div>' : "") + "</div>";
-      if (justSaved) $("b-wlink").onclick = function () { showKeyLink($("w-link")); };
+      if (justSaved && S.provider === "google") { var bw = $("b-wlink"); if (bw) bw.onclick = function () { showKeyLink($("w-link")); }; justSaved = false; }
     } else {
       msgsEl.innerHTML = c.msgs.map(msgHTML).join("");
       if (lastErr) msgsEl.insertAdjacentHTML("beforeend", '<div class="x-err"><p>' + esc(lastErr) + '</p><button class="btn" id="b-retry" type="button">Tentar de novo</button></div>');
@@ -2770,7 +2770,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     gdSilent().then(function (ok) { if (ok) syncNow(false); });
   });
   /* auto-atualização: se sair versão nova, recarrega sozinho (uma vez) */
-  var APP_V = "20261008-21";
+  var APP_V = "20261008-22";
   setTimeout(function () {
     fetch(location.pathname, { cache: "no-store" }).then(function (r) { return r.text(); }).then(function (t) {
       var m = t.match(/var APP_V = "([^"]+)"/);
