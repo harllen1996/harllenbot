@@ -817,6 +817,21 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
       .x-klink { display: grid; gap: 8px; text-align: left; justify-items: stretch; width: 100%; max-width: 460px; }
       textarea.x-klink-url { min-height: 0; font: var(--type-caption); word-break: break-all; resize: none; }
       .x-klink small { font: var(--type-caption); color: var(--text-secondary); }
+      #lib { z-index: 31; }
+      .x-check { display: flex; align-items: center; gap: 10px; min-height: var(--tap); font: var(--type-label); cursor: pointer; }
+      .x-check input { flex: none; width: 20px; height: 20px; margin: 0; accent-color: var(--fill-primary); }
+      .x-check input:disabled + span { opacity: 0.45; }
+      .x-check > span { min-width: 0; overflow-wrap: anywhere; }
+      .x-check small { display: block; font: var(--type-caption); color: var(--text-secondary); }
+      .x-docs li > span:not(.x-av) { min-width: 0; overflow-wrap: anywhere; }
+      .x-docs li .x-av { font-size: 12px; }
+      .x-flist li { padding: 0; }
+      .x-flist li .x-check { flex: 1; padding: 4px 0; font: var(--type-small); }
+      .x-help summary { display: flex; align-items: center; min-height: var(--tap); font: var(--type-label); cursor: pointer; }
+      .x-help ol { margin: 0; padding-left: 22px; display: grid; gap: 4px; font: var(--type-small); color: var(--text-secondary); }
+      .x-help ol b { color: var(--text-primary); font-weight: var(--weight-medium); }
+      .x-src { font: var(--type-caption); color: var(--text-secondary); overflow-wrap: anywhere; }
+      [hidden] { display: none !important; }
     </style>
   </head>
   <body>
@@ -849,7 +864,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
       <nav class="x-drawer" id="drawer" aria-label="Conversas">
         <div><button class="x-primary" id="b-new2">+ Nova conversa</button></div>
         <ul class="x-convs" id="convs"></ul>
-        <div class="x-dfoot"><button class="x-ib" id="b-set2">Configurações</button></div>
+        <div class="x-dfoot"><button class="x-ib" id="b-lib">Biblioteca</button><button class="x-ib" id="b-set2">Configurações</button></div>
       </nav>
       <section class="x-sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Configurações">
         <header class="x-bar"><h1>Configurações</h1><button class="x-ib" id="b-close" aria-label="Fechar">✕</button></header>
@@ -901,8 +916,14 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
             <div class="x-row" id="f-mem"><input class="x-in" id="s-mem" placeholder="Ex.: Trabalho com logística" /><button type="button" class="x-primary" id="b-mem">Adicionar</button></div>
           </div>
           <div class="x-group">
+            <h2>Biblioteca</h2>
+            <p class="fineprint" id="s-libinfo">Documentos que o HarllenBot consulta para responder: arquivos, Google Drive e ClickUp.</p>
+            <div class="links"><button type="button" class="btn" id="b-lib2">Abrir Biblioteca</button></div>
+          </div>
+          <div class="x-group">
             <h2>Backup</h2>
-            <p class="fineprint">Conversas, memória e configurações. A chave da API nunca vai no arquivo.</p>
+            <p class="fineprint">Conversas, memória e configurações. A chave da API, os tokens e o Client ID nunca vão no arquivo.</p>
+            <label class="x-check"><input type="checkbox" id="s-bkplib" /><span>Incluir Biblioteca no backup</span></label>
             <div class="links"><button class="btn" id="b-exp">Exportar backup</button><label class="btn" for="f-imp">Importar backup</label></div>
             <input type="file" id="f-imp" accept="application/json,.json" class="x-sr" />
           </div>
@@ -913,6 +934,67 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
           <div class="x-group">
             <h2>Apagar tudo</h2>
             <div class="links"><button class="btn" id="b-wipe">Apagar conversas</button></div>
+          </div>
+        </div>
+      </section>
+      <section class="x-sheet" id="lib" role="dialog" aria-modal="true" aria-label="Biblioteca">
+        <header class="x-bar"><h1>Biblioteca <small id="l-count"></small></h1><button class="x-ib" id="b-lclose" aria-label="Fechar">✕</button></header>
+        <div class="x-sbody">
+          <p class="fineprint" id="l-warn" hidden>Este navegador não permite salvar a Biblioteca no aparelho (IndexedDB indisponível). Os documentos ficam só enquanto a página estiver aberta.</p>
+          <div class="x-group">
+            <label class="x-check"><input type="checkbox" id="l-on" /><span>Usar a Biblioteca nas respostas</span></label>
+            <p class="fineprint">A cada pergunta, o HarllenBot procura os trechos mais relevantes dos seus documentos e manda junto para a IA. Os documentos ficam só neste aparelho; só os trechos usados vão para o provedor de IA.</p>
+          </div>
+          <div class="x-group">
+            <h2>Adicionar</h2>
+            <div class="links"><label class="btn" for="l-file">Adicionar arquivos</label><button type="button" class="btn" id="b-lpaste">Colar texto</button></div>
+            <input type="file" id="l-file" multiple accept=".txt,.md,.markdown,.csv,.json,.html,.htm,.pdf,.docx,text/plain,text/markdown,text/csv,application/json,text/html,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="x-sr" />
+            <p class="fineprint">TXT, MD, CSV, JSON, HTML, PDF e DOCX. PDFs escaneados (só imagem) não têm texto para ler.</p>
+            <div class="x-group x-bed" id="l-paste" hidden>
+              <label class="x-field">Título<input class="x-in" id="l-ptitle" placeholder="Ex.: Anotações da reunião" /></label>
+              <label class="x-field">Texto<textarea class="x-in" id="l-ptext" placeholder="Cole o texto aqui"></textarea></label>
+              <div class="links"><button type="button" class="x-primary" id="b-lpsave">Salvar na Biblioteca</button><button type="button" class="btn" id="b-lpcancel">Cancelar</button></div>
+            </div>
+            <p class="fineprint" id="l-prog" role="status" hidden></p>
+          </div>
+          <div class="x-group">
+            <h2>Documentos</h2>
+            <input class="x-in" type="search" id="l-q" placeholder="Buscar na Biblioteca" autocomplete="off" aria-label="Buscar na Biblioteca" />
+            <ul class="x-mem x-docs" id="l-docs"></ul>
+            <div class="links"><button type="button" class="btn" id="b-lwipe">Apagar tudo</button></div>
+          </div>
+          <div class="x-group">
+            <h2>Google Drive</h2>
+            <label class="x-field">Google OAuth Client ID<input class="x-in" id="l-gcid" placeholder="123456-abc.apps.googleusercontent.com" autocomplete="off" spellcheck="false" /><small>Fica só neste aparelho. O acesso ao Drive é só leitura e o login dura até fechar a página.</small></label>
+            <details class="x-help">
+              <summary>Como criar o Client ID (uma vez só)</summary>
+              <ol>
+                <li>Abra <a class="link" href="https://console.cloud.google.com/" target="_blank" rel="noopener">console.cloud.google.com</a> e crie um projeto (ex.: HarllenBot).</li>
+                <li>Em <b>APIs e serviços › Biblioteca</b>, procure <b>Google Drive API</b> e toque em <b>Ativar</b>.</li>
+                <li>Em <b>Tela de consentimento OAuth</b>, escolha <b>Externo</b>, preencha nome e e-mail e adicione o seu próprio e-mail em <b>Usuários de teste</b>.</li>
+                <li>Em <b>Credenciais › Criar credenciais › ID do cliente OAuth</b>, escolha <b>Aplicativo da Web</b>.</li>
+                <li>Em <b>Origens JavaScript autorizadas</b>, adicione <b>https://harllen1996.github.io</b> e salve.</li>
+                <li>Copie o <b>ID do cliente</b> (termina em .apps.googleusercontent.com) e cole no campo acima.</li>
+              </ol>
+            </details>
+            <div class="links"><button type="button" class="btn" id="b-gconn">Conectar Google Drive</button><button type="button" class="btn" id="b-gsync">Atualizar do Drive</button></div>
+            <div class="x-group x-bed" id="l-gd" hidden>
+              <div class="x-row"><input class="x-in" type="search" id="l-gq" placeholder="Buscar arquivos pelo nome" autocomplete="off" aria-label="Buscar no Drive" /><button type="button" class="btn" id="b-gsearch">Buscar</button></div>
+              <ul class="x-mem x-flist" id="l-glist"></ul>
+              <div class="links"><button type="button" class="btn" id="b-gmore" hidden>Carregar mais</button></div>
+              <div class="links"><button type="button" class="x-primary" id="b-gimp">Importar selecionados</button><button type="button" class="btn" id="b-gclose">Fechar</button></div>
+            </div>
+          </div>
+          <div class="x-group">
+            <h2>ClickUp</h2>
+            <label class="x-field">Token pessoal do ClickUp<input class="x-in" type="password" id="l-cutok" placeholder="pk_…" autocomplete="off" spellcheck="false" /><small>Fica só neste aparelho. Para pegar: ClickUp › seu avatar › Settings › Apps › API Token.</small></label>
+            <div class="links"><button type="button" class="btn" id="b-cuimp">Importar do ClickUp</button><button type="button" class="btn" id="b-cusync">Atualizar do ClickUp</button></div>
+            <div class="x-group x-bed" id="l-cu" hidden>
+              <label class="x-field">Workspace<select class="x-in" id="l-cuteam"></select></label>
+              <p class="fineprint">Escolha os espaços. Cada lista vira um documento com as tarefas.</p>
+              <ul class="x-mem x-flist" id="l-cusp"></ul>
+              <div class="links"><button type="button" class="x-primary" id="b-cugo">Importar espaços selecionados</button><button type="button" class="btn" id="b-cuclose">Fechar</button></div>
+            </div>
           </div>
         </div>
       </section>
@@ -1240,7 +1322,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     if (m.role === "user") return '<div class="x-msg x-msg--user">' + (m.img ? '<img class="x-img" alt="Imagem enviada" src="' + m.img.url + '">' : "") + (m.text ? '<div class="x-bub">' + esc(m.text) + "</div>" : "") + "</div>";
     var b = botById(m.botId);
     if (m.call) { var t = botById(m.call); return '<div class="x-sys">' + esc(b.name) + " chamou " + esc(t.av) + " <b>" + esc(t.name) + "</b>" + (m.text ? "<br>" + esc(m.text) : "") + "</div>"; }
-    return '<div class="x-msg x-msg--model" data-i="' + idx + '"><div class="x-who"><span class="x-av">' + esc(b.av) + "</span>" + esc(b.name) + '</div><div class="x-bub">' + md(m.text) + '</div><div class="x-tools"><button class="x-ib x-copymsg" type="button">Copiar</button>' + ("speechSynthesis" in window ? '<button class="x-ib x-speak" type="button">Falar</button>' : "") + "</div></div>";
+    return '<div class="x-msg x-msg--model" data-i="' + idx + '"><div class="x-who"><span class="x-av">' + esc(b.av) + "</span>" + esc(b.name) + '</div><div class="x-bub">' + md(m.text) + '</div>' + (Array.isArray(m.src) && m.src.length ? '<div class="x-src">Fontes: ' + esc(m.src.map(String).join(" · ")) + "</div>" : "") + '<div class="x-tools"><button class="x-ib x-copymsg" type="button">Copiar</button>' + ("speechSynthesis" in window ? '<button class="x-ib x-speak" type="button">Falar</button>' : "") + "</div></div>";
   }
   function render() {
     $("t-model").textContent = modelLabel();
@@ -1280,10 +1362,10 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   }
 
   /* API */
-  function sysText(b) {
+  function sysText(b, rag) {
     var sp = S.bots.filter(function (x) { return x.id !== "main"; });
     var base = b.id === "main" ? S.sys + (sp.length ? "\n\nVocê coordena um time de especialistas: " + sp.map(function (x) { return x.name + " (id " + x.id + ") — " + (x.desc || ""); }).join("; ") + ". Quando a pergunta for claramente da área de um especialista, comece sua resposta com uma linha exatamente assim: [[CHAMAR:<id>]] seguida de uma frase curta explicando por que, e não responda o resto. Caso contrário responda normalmente." : "") : (b.prompt || SP(b.name, (b.desc || "assuntos gerais") + "."));
-    return base + (S.mem.length ? "\n\nFatos que você sabe sobre o Harllen:\n" + S.mem.map(function (f) { return "- " + f; }).join("\n") : "");
+    return base + (S.mem.length ? "\n\nFatos que você sabe sobre o Harllen:\n" + S.mem.map(function (f) { return "- " + f; }).join("\n") : "") + (rag && rag.text ? "\n\n" + rag.text : "");
   }
   function contents(msgs, forId) {
     var out = [];
@@ -1307,8 +1389,8 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     if (st >= 500) return "Erro no provedor. Tente de novo em instantes.";
     return "Algo deu errado (erro " + st + ").";
   }
-  function oaMessages(msgs, forId, b) {
-    var out = [{ role: "system", content: sysText(b) }];
+  function oaMessages(msgs, forId, b, rag) {
+    var out = [{ role: "system", content: sysText(b, rag) }];
     msgs.forEach(function (m) {
       if (m.call || !(m.text || m.img)) return;
       var t = m.text;
@@ -1323,11 +1405,11 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     });
     return out;
   }
-  async function streamGoogle(b, bot, el, hist) {
+  async function streamGoogle(b, bot, el, hist, rag) {
     var res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + effModel() + ":streamGenerateContent?alt=sse", {
       method: "POST", signal: busy.signal,
       headers: { "x-goog-api-key": KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({ systemInstruction: { parts: [{ text: sysText(b) }] }, contents: hist, generationConfig: { temperature: 0.8, maxOutputTokens: 8192 } })
+      body: JSON.stringify({ systemInstruction: { parts: [{ text: sysText(b, rag) }] }, contents: hist, generationConfig: { temperature: 0.8, maxOutputTokens: 8192 } })
     });
     if (!res.ok) throw { status: res.status };
     var reader = res.body.getReader(), dec = new TextDecoder(), buf = "";
@@ -1349,13 +1431,13 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
       if (cm && /\S[^\n]*\n/.test(bot.text.slice(cm.index + cm[0].length).replace(/^\s+/, ""))) { try { reader.cancel(); } catch (e) {} break; }
     }
   }
-  async function streamOA(b, bot, el) {
+  async function streamOA(b, bot, el, rag) {
     var P = PROVIDERS[S.provider];
     var hdrs = { "Authorization": "Bearer " + curKey(), "Content-Type": "application/json" };
     if (S.provider === "openrouter") { hdrs["HTTP-Referer"] = location.href; hdrs["X-Title"] = "HarllenBot"; }
     var res = await fetch(P.base + "/chat/completions", {
       method: "POST", signal: busy.signal, headers: hdrs,
-      body: JSON.stringify({ model: effModel(), messages: oaMessages(cur().msgs, b.id, b), stream: true, temperature: 0.8, max_tokens: 8192 })
+      body: JSON.stringify({ model: effModel(), messages: oaMessages(cur().msgs, b.id, b, rag), stream: true, temperature: 0.8, max_tokens: 8192 })
     });
     if (!res.ok) throw { status: res.status };
     var reader = res.body.getReader(), dec = new TextDecoder(), buf = "";
@@ -1389,8 +1471,10 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     c.msgs.push(bot); render();
     var el = msgsEl.lastElementChild.querySelector(".x-bub"); el.classList.add("x-typing");
     busy = new AbortController(); setBusy(true);
+    var rag = null;
     try {
-      if (S.provider === "google") await streamGoogle(b, bot, el, hist); else await streamOA(b, bot, el);
+      rag = await libRetrieve(c.msgs);
+      if (S.provider === "google") await streamGoogle(b, bot, el, hist, rag); else await streamOA(b, bot, el, rag);
       ok = true;
     } catch (e) {
       if (e && e.name === "AbortError") { if (!bot.text) c.msgs.pop(); }
@@ -1400,6 +1484,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     if (mm) { if (tgt) { bot.call = tgt.id; bot.text = bot.text.slice(mm.index + mm[0].length).trim().split("\n")[0].trim().slice(0, 240); } else bot.text = bot.text.replace(CALL, "").trim(); }
     if (!ok && !bot.text && !bot.call && c.msgs.indexOf(bot) >= 0) c.msgs.splice(c.msgs.indexOf(bot), 1);
     if (ok && !bot.text && !bot.call) bot.text = "_(Sem resposta. Tente reformular a pergunta.)_";
+    if (ok && rag && rag.titles.length && !bot.call && bot.text) bot.src = rag.titles;
     busy = null; setBusy(false); c.ts = Date.now(); saveConvs(); render();
     if (tgt && cur() === c) generate(tgt.id);
   }
@@ -1495,7 +1580,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   function openSet() { closeDrawer(); $("s-prov").value = S.provider; syncProvUI(); $("s-sys").value = S.sys; renderPresets(); renderMem(); renderBots(); closeEd(); $("sheet").classList.add("is-open"); }
   function closeSet() { var v = $("s-sys").value.trim(); S.sys = v || DEF_SYS; S.cust[S.provider] = $("s-model2").value.trim(); saveSettings(); $("sheet").classList.remove("is-open"); render(); }
   $("b-set").onclick = openSet; $("b-set2").onclick = openSet; $("b-close").onclick = closeSet;
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape") { if ($("sheet").classList.contains("is-open")) closeSet(); else closeDrawer(); } });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") { if ($("lib").classList.contains("is-open")) closeLib(); else if ($("sheet").classList.contains("is-open")) closeSet(); else closeDrawer(); } });
   $("b-slink").onclick = function () { showKeyLink($("s-link")); };
   $("b-skey").onclick = function () { var v = $("s-key").value.trim(); if (v) { setKey(v); syncProvUI(); } else toast("Cole a chave do provedor " + PROVIDERS[S.provider].name + " primeiro."); };
   $("s-prov").onchange = function () { S.provider = this.value; S.model = S.pm[S.provider]; saveSettings(); syncProvUI(); render(); };
@@ -1608,9 +1693,509 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     btn.textContent = "Parar"; ss.speak(u);
   }
 
+  /* biblioteca (base de conhecimento): IndexedDB + BM25 */
+  var PDFJS_URL = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs";
+  var PDFJS_WORKER = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
+  var MAMMOTH_URL = "https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js";
+  var GIS_URL = "https://accounts.google.com/gsi/client";
+  var GD_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
+  var DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  var CU_API = "https://api.clickup.com/api/v2";
+  var LIB_HEAD = "Base de conhecimento do Harllen (use quando relevante e cite o título da fonte entre colchetes; se não estiver aqui, diga que não encontrou na Biblioteca):";
+  var SRC_LABEL = { file: "Arquivo", paste: "Texto colado", drive: "Drive", clickup: "ClickUp" };
+  var SRC_ICON = { file: "📄", paste: "📝", drive: "🟢", clickup: "✅" };
+  S.libOn = S.libOn !== false;
+  S.gdriveClientId = typeof S.gdriveClientId === "string" ? S.gdriveClientId : "";
+  S.clickupToken = typeof S.clickupToken === "string" ? S.clickupToken : "";
+
+  var LIB = { docs: [], db: null, mem: false, ver: 0, idx: null, idxVer: -1 };
+  function idbOpen() {
+    return new Promise(function (res, rej) {
+      try {
+        if (!window.indexedDB) { rej(new Error("no idb")); return; }
+        var r = indexedDB.open("harllenbot", 1);
+        r.onupgradeneeded = function () { if (!r.result.objectStoreNames.contains("docs")) r.result.createObjectStore("docs", { keyPath: "id" }); };
+        r.onsuccess = function () { res(r.result); };
+        r.onerror = function () { rej(r.error || new Error("idb")); };
+        r.onblocked = function () { rej(new Error("idb blocked")); };
+      } catch (e) { rej(e); }
+    });
+  }
+  function idbDo(mode, fn) {
+    return new Promise(function (res, rej) {
+      try {
+        var tx = LIB.db.transaction("docs", mode), r = fn(tx.objectStore("docs"));
+        tx.oncomplete = function () { res(r ? r.result : undefined); };
+        tx.onerror = tx.onabort = function () { rej(tx.error || new Error("idb tx")); };
+      } catch (e) { rej(e); }
+    });
+  }
+  LIB.ready = idbOpen().then(function (db) {
+    LIB.db = db;
+    return idbDo("readonly", function (st) { return st.getAll(); });
+  }).then(function (all) {
+    LIB.docs = (all || []).filter(function (d) { return d && d.id && typeof d.text === "string"; });
+    LIB.docs.forEach(function (d) { if (!Array.isArray(d.chunks)) d.chunks = chunkText(d.text); });
+  }).catch(function () { LIB.db = null; LIB.mem = true; }).then(function () { LIB.ver++; renderLib(); });
+
+  function cleanText(t) { return String(t || "").replace(/\r\n?/g, "\n").replace(/\u0000/g, "").replace(/[ \t\f\v\u00a0]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim(); }
+  function chunkText(t) {
+    var out = [], n = t.length, i = 0, SIZE = 900, OVER = 150;
+    if (!n) return out;
+    while (i < n) {
+      var end = Math.min(n, i + SIZE);
+      if (end < n) {
+        var win = t.slice(i + 500, end), cut = Math.max(win.lastIndexOf("\n"), win.lastIndexOf(". "), win.lastIndexOf("; "));
+        if (cut < 0) cut = win.lastIndexOf(" ");
+        if (cut >= 0) end = i + 500 + cut + 1;
+      }
+      var c = t.slice(i, end).trim(); if (c) out.push(c);
+      if (end >= n) break;
+      var nx = Math.max(end - OVER, i + 1), sp = t.indexOf(" ", nx);
+      i = sp > 0 && sp < end ? sp + 1 : nx;
+    }
+    return out;
+  }
+  function libSave(doc) {
+    doc.text = cleanText(doc.text);
+    doc.chunks = chunkText(doc.text);
+    doc.updated = Date.now();
+    if (!doc.size) doc.size = new Blob([doc.text]).size;
+    var i = LIB.docs.findIndex(function (d) { return d.id === doc.id; });
+    if (i >= 0) LIB.docs[i] = doc; else LIB.docs.unshift(doc);
+    LIB.ver++;
+    if (!LIB.db) return Promise.resolve(doc);
+    return idbDo("readwrite", function (st) { st.put(doc); }).then(function () { return doc; }, function () { toast("Não consegui salvar no aparelho (espaço cheio?). Fica só nesta sessão."); return doc; });
+  }
+  function libDel(id) {
+    LIB.docs = LIB.docs.filter(function (d) { return d.id !== id; }); LIB.ver++;
+    return LIB.db ? idbDo("readwrite", function (st) { st.delete(id); }).catch(function () {}) : Promise.resolve();
+  }
+  function libClear() {
+    LIB.docs = []; LIB.ver++;
+    return LIB.db ? idbDo("readwrite", function (st) { st.clear(); }).catch(function () {}) : Promise.resolve();
+  }
+  function libImportBackup(arr) {
+    return LIB.ready.then(function () {
+      var n = 0, p = Promise.resolve();
+      arr.forEach(function (d) {
+        if (!d || typeof d.text !== "string" || !d.text.trim()) return;
+        var doc = { id: String(d.id || "f_" + uid()), title: String(d.title || "Documento"), source: SRC_LABEL[d.source] ? d.source : "file", sourceId: String(d.sourceId || ""), text: d.text, size: +d.size || 0, mime: String(d.mime || ""), meta: d.meta && typeof d.meta === "object" ? d.meta : null, remoteMod: String(d.remoteMod || "") };
+        n++; p = p.then(function () { return libSave(doc); });
+      });
+      return p.then(function () { renderLib(); return n; });
+    }).catch(function () { return 0; });
+  }
+
+  /* BM25 */
+  var STOP = {};
+  ("a o e é as os um uma uns umas de da do das dos em na no nas nos num numa por pela pelo pelas pelos para pra pro com sem sob sobre ao aos à às que quem qual quais quando onde como porque pois mas ou se ja nao sim mais menos muito muita muitos muitas pouco ser estar ter haver foi era sao esta estao tem tinha ha isso isto esse essa esses essas este esta estes estas aquele aquela aqueles aquelas ele ela eles elas eu tu voce voces nos vos me te lhe lhes meu minha meus minhas seu sua seus suas teu tua nosso nossa dele dela deles delas lo la entre ate apos desde tambem so ainda entao assim tudo todo toda todos todas cada outro outra outros outras mesmo mesma vai vou fazer faz fiz pode posso sobre qualquer algum alguma alguns algumas nem the of and to in is for on it are")
+    .split(" ").forEach(function (w) { STOP[w.normalize("NFD").replace(/[\u0300-\u036f]/g, "")] = 1; });
+  function toks(s) {
+    return String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter(function (w) { return w.length > 1 && !STOP[w]; });
+  }
+  function libIndex() {
+    if (LIB.idx && LIB.idxVer === LIB.ver) return LIB.idx;
+    var items = [], df = Object.create(null), tot = 0;
+    LIB.docs.forEach(function (d) {
+      (d.chunks || []).forEach(function (c) {
+        var tf = Object.create(null), ws = toks(d.title + " " + c);
+        ws.forEach(function (w) { tf[w] = (tf[w] || 0) + 1; });
+        Object.keys(tf).forEach(function (w) { df[w] = (df[w] || 0) + 1; });
+        items.push({ title: d.title, text: c, tf: tf, len: ws.length || 1 });
+        tot += ws.length || 1;
+      });
+    });
+    LIB.idx = { items: items, df: df, N: items.length, avg: items.length ? tot / items.length : 1 };
+    LIB.idxVer = LIB.ver;
+    return LIB.idx;
+  }
+  function libSearch(q, k) {
+    var ix = libIndex(), qt = toks(q), out = [];
+    if (!ix.N || !qt.length) return out;
+    var uq = qt.filter(function (w, i) { return qt.indexOf(w) === i; }), K1 = 1.2, B = 0.75;
+    ix.items.forEach(function (it) {
+      var sc = 0;
+      uq.forEach(function (w) {
+        var f = it.tf[w]; if (!f) return;
+        var dfw = ix.df[w], idf = Math.log(1 + (ix.N - dfw + 0.5) / (dfw + 0.5));
+        sc += idf * (f * (K1 + 1)) / (f + K1 * (1 - B + B * it.len / ix.avg));
+      });
+      if (sc > 0) out.push({ it: it, sc: sc });
+    });
+    out.sort(function (a, b) { return b.sc - a.sc; });
+    return out.slice(0, k || 6);
+  }
+  async function libRetrieve(msgs) {
+    try {
+      if (!S.libOn) return null;
+      await Promise.race([LIB.ready, new Promise(function (r) { setTimeout(r, 3000); })]);
+      if (!LIB.docs.length) return null;
+      var us = msgs.filter(function (m) { return m.role === "user" && m.text; });
+      if (!us.length) return null;
+      var q = us[us.length - 1].text;
+      if (toks(q).length < 3 && us.length > 1) q = us[us.length - 2].text + " " + q;
+      var hits = libSearch(q, 6), used = 0, parts = [], titles = [];
+      hits.forEach(function (h) {
+        var room = 5000 - used; if (room < 200) return;
+        var t = h.it.text.length > room ? h.it.text.slice(0, room) + "…" : h.it.text;
+        parts.push("[" + h.it.title + "] " + t); used += t.length;
+        if (titles.indexOf(h.it.title) < 0) titles.push(h.it.title);
+      });
+      if (!parts.length) return null;
+      return { text: LIB_HEAD + "\n" + parts.join("\n\n"), titles: titles };
+    } catch (e) { return null; }
+  }
+
+  /* leitura de arquivos */
+  var scriptP = {};
+  function loadScript(src) {
+    if (!scriptP[src]) scriptP[src] = new Promise(function (res, rej) {
+      var sc = document.createElement("script"); sc.src = src; sc.async = true;
+      sc.onload = function () { res(); };
+      sc.onerror = function () { delete scriptP[src]; sc.remove(); rej(new Error("Não consegui carregar " + src)); };
+      document.head.appendChild(sc);
+    });
+    return scriptP[src];
+  }
+  var pdfP = null;
+  function loadPdf() {
+    if (!pdfP) pdfP = import(PDFJS_URL).then(function (m) { m.GlobalWorkerOptions.workerSrc = PDFJS_WORKER; return m; }, function (e) { pdfP = null; throw e; });
+    return pdfP;
+  }
+  async function pdfText(buf) {
+    var lib = await loadPdf();
+    var pdf = await lib.getDocument({ data: new Uint8Array(buf), isEvalSupported: false }).promise, out = [];
+    for (var p = 1; p <= pdf.numPages; p++) {
+      var pg = await pdf.getPage(p), tc = await pg.getTextContent(), s = "";
+      tc.items.forEach(function (it) { if (typeof it.str === "string") s += it.str + (it.hasEOL ? "\n" : ""); });
+      out.push(s);
+    }
+    try { pdf.destroy(); } catch (e) {}
+    return out.join("\n\n");
+  }
+  function htmlText(t) {
+    try { var d = new DOMParser().parseFromString(t, "text/html"); d.querySelectorAll("script,style,noscript,template").forEach(function (x) { x.remove(); }); return (d.body || d.documentElement).innerText || (d.body || d.documentElement).textContent || ""; } catch (e) { return t.replace(/<[^>]+>/g, " "); }
+  }
+  function fileExt(name) { var m = /\.([a-z0-9]+)$/i.exec(name || ""); return m ? m[1].toLowerCase() : ""; }
+  function canRead(name, mime) {
+    var x = fileExt(name); mime = mime || "";
+    return /^(txt|md|markdown|csv|tsv|json|html|htm|pdf|docx|xml|log)$/.test(x) || /^text\//.test(mime) || mime === "application/json" || mime === "application/pdf" || mime === DOCX_MIME;
+  }
+  async function extractText(blob, name, mime) {
+    var x = fileExt(name); mime = mime || blob.type || "";
+    if (x === "pdf" || mime === "application/pdf") return pdfText(await blob.arrayBuffer());
+    if (x === "docx" || mime === DOCX_MIME) {
+      await loadScript(MAMMOTH_URL);
+      if (!window.mammoth) throw new Error("mammoth");
+      return (await window.mammoth.extractRawText({ arrayBuffer: await blob.arrayBuffer() })).value || "";
+    }
+    var t = await blob.text();
+    if (x === "html" || x === "htm" || mime === "text/html") return htmlText(t);
+    return t;
+  }
+  function fmtSize(n) { n = +n || 0; return n < 1024 ? n + " B" : n < 1048576 ? (n / 1024).toFixed(n < 10240 ? 1 : 0).replace(".", ",") + " KB" : (n / 1048576).toFixed(1).replace(".", ",") + " MB"; }
+  function fmtDate(ts) { try { return new Date(ts).toLocaleDateString("pt-BR"); } catch (e) { return ""; } }
+  function prog(t) { var el = $("l-prog"); el.textContent = t || ""; el.hidden = !t; }
+
+  /* UI da Biblioteca */
+  function renderLib() {
+    if (!$("l-docs")) return;
+    $("l-warn").hidden = !LIB.mem;
+    $("l-on").checked = S.libOn;
+    var n = LIB.docs.length;
+    $("l-count").textContent = n ? n + (n === 1 ? " documento" : " documentos") : "";
+    $("s-libinfo").textContent = (n ? n + (n === 1 ? " documento" : " documentos") + " · " : "") + (S.libOn ? "usada nas respostas." : "desligada nas respostas.") + " Arquivos, Google Drive e ClickUp.";
+    var q = toks($("l-q").value).join(" "), ql = $("l-q").value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    var list = LIB.docs.slice().sort(function (a, b) { return (b.updated || 0) - (a.updated || 0); }).filter(function (d) {
+      if (!ql) return true;
+      var hay = (d.title + "\n" + d.text.slice(0, 200000)).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      return hay.indexOf(ql) >= 0 || (q && q.split(" ").every(function (w) { return hay.indexOf(w) >= 0; }));
+    });
+    $("l-docs").innerHTML = list.length ? list.map(function (d) {
+      return '<li><span class="x-av" aria-hidden="true">' + (SRC_ICON[d.source] || "📄") + '</span><span><b>' + esc(d.title) + "</b><small>" + esc(SRC_LABEL[d.source] || "Arquivo") + " · " + fmtSize(d.size) + " · " + fmtDate(d.updated) + '</small></span><button type="button" class="x-ib" data-del="' + esc(d.id) + '" aria-label="Apagar ' + esc(d.title) + '">✕</button></li>';
+    }).join("") : '<li><span class="sub">' + (n ? "Nada encontrado." : "Nenhum documento ainda. Adicione arquivos, cole um texto ou importe do Drive e do ClickUp.") + "</span></li>";
+    $("b-lwipe").hidden = !n;
+    $("b-gsync").hidden = !LIB.docs.some(function (d) { return d.source === "drive"; });
+    $("b-cusync").hidden = !LIB.docs.some(function (d) { return d.source === "clickup"; });
+  }
+  function openLib() {
+    closeDrawer(); pop.hidden = true;
+    $("l-gcid").value = S.gdriveClientId; $("l-cutok").value = S.clickupToken;
+    renderLib(); $("lib").classList.add("is-open");
+    if (S.gdriveClientId) loadScript(GIS_URL).catch(function () {});
+  }
+  function closeLib() { $("lib").classList.remove("is-open"); renderLib(); }
+  $("b-lib").onclick = openLib; $("b-lib2").onclick = openLib; $("b-lclose").onclick = closeLib;
+  $("l-on").onchange = function () { S.libOn = this.checked; saveSettings(); renderLib(); toast(S.libOn ? "Biblioteca ligada nas respostas" : "Biblioteca desligada nas respostas"); };
+  $("l-q").oninput = function () { renderLib(); };
+  $("l-docs").onclick = function (e) {
+    var b = e.target.closest("button[data-del]"); if (!b) return;
+    var d = LIB.docs.find(function (x) { return x.id === b.dataset.del; }); if (!d || !confirm("Apagar \"" + d.title + "\" da Biblioteca?")) return;
+    libDel(d.id).then(function () { renderLib(); toast("Documento apagado"); });
+  };
+  $("b-lwipe").onclick = function () { if (!LIB.docs.length || !confirm("Apagar todos os documentos da Biblioteca?")) return; libClear().then(function () { renderLib(); toast("Biblioteca apagada"); }); };
+  $("b-lpaste").onclick = function () { $("l-paste").hidden = false; $("l-ptitle").focus(); };
+  $("b-lpcancel").onclick = function () { $("l-paste").hidden = true; $("l-ptitle").value = ""; $("l-ptext").value = ""; };
+  $("b-lpsave").onclick = async function () {
+    var t = $("l-ptext").value.trim(); if (!t) { toast("Cole um texto primeiro."); $("l-ptext").focus(); return; }
+    var title = $("l-ptitle").value.trim() || t.split("\n")[0].slice(0, 60);
+    await LIB.ready; await libSave({ id: "p_" + uid(), title: title, source: "paste", sourceId: "", text: t });
+    $("b-lpcancel").click(); renderLib(); toast("Texto salvo na Biblioteca");
+  };
+  $("l-file").onchange = async function () {
+    var files = [].slice.call(this.files || []), self = this, ok = 0, fail = [];
+    if (!files.length) return;
+    await LIB.ready;
+    for (var i = 0; i < files.length; i++) {
+      var f = files[i];
+      prog("Lendo " + (i + 1) + "/" + files.length + ": " + f.name + "…");
+      try {
+        if (!canRead(f.name, f.type)) throw new Error("tipo");
+        var t = cleanText(await extractText(f, f.name, f.type));
+        if (!t) throw new Error("vazio");
+        var old = LIB.docs.find(function (d) { return d.source === "file" && d.title === f.name; });
+        await libSave({ id: old ? old.id : "f_" + uid(), title: f.name, source: "file", sourceId: "", text: t, size: f.size, mime: f.type || "" });
+        ok++; renderLib();
+      } catch (e) { fail.push(f.name + (e && e.message === "vazio" ? " (sem texto)" : e && e.message === "tipo" ? " (tipo não suportado)" : "")); }
+    }
+    self.value = ""; prog(fail.length ? "Não consegui ler: " + fail.join(", ") : "");
+    renderLib(); if (ok) toast(ok === 1 ? "Documento adicionado" : ok + " documentos adicionados");
+  };
+
+  /* Google Drive (token só na memória) */
+  var GD = { token: "", exp: 0, tc: null, cid: "", onTok: null, onErr: null, next: "", q: "", files: {} };
+  $("l-gcid").onchange = function () { var v = this.value.trim(); if (v !== S.gdriveClientId) { S.gdriveClientId = v; GD.token = ""; GD.tc = null; saveSettings(); if (v) { toast("Client ID salvo"); loadScript(GIS_URL).catch(function () {}); } } };
+  function gdToken() {
+    if (GD.token && Date.now() < GD.exp - 60000) return Promise.resolve(GD.token);
+    var cid = (S.gdriveClientId || "").trim();
+    if (!cid) return Promise.reject(new Error("Cole o Google OAuth Client ID primeiro."));
+    return loadScript(GIS_URL).then(function () {
+      return new Promise(function (res, rej) {
+        var oa = window.google && google.accounts && google.accounts.oauth2;
+        if (!oa) { rej(new Error("Não consegui carregar o login do Google.")); return; }
+        if (!GD.tc || GD.cid !== cid) {
+          GD.cid = cid;
+          GD.tc = oa.initTokenClient({ client_id: cid, scope: GD_SCOPE, callback: function (r) { if (GD.onTok) GD.onTok(r); }, error_callback: function (e) { if (GD.onErr) GD.onErr(e); } });
+        }
+        GD.onTok = function (r) {
+          if (r && r.access_token) { GD.token = r.access_token; GD.exp = Date.now() + (+r.expires_in || 3600) * 1000; res(GD.token); }
+          else rej(new Error(r && r.error === "access_denied" ? "Acesso ao Drive negado." : "O Google não liberou o acesso (" + ((r && r.error) || "erro") + ")."));
+        };
+        GD.onErr = function (e) { rej(new Error(e && e.type === "popup_failed_to_open" ? "O navegador bloqueou a janela do Google. Toque de novo em Conectar." : "Login do Google cancelado.")); };
+        try { GD.tc.requestAccessToken(GD.token ? { prompt: "" } : {}); } catch (e) { rej(new Error("Client ID inválido?")); }
+      });
+    });
+  }
+  async function gdFetch(url) {
+    var tk = await gdToken();
+    var r = await fetch(url, { headers: { Authorization: "Bearer " + tk } });
+    if (r.status === 401) { GD.token = ""; throw new Error("Sessão do Google expirou. Toque em Conectar de novo."); }
+    if (r.status === 403) { var j = null; try { j = await r.json(); } catch (e) {} var msg = j && j.error && j.error.message || ""; throw new Error(/not been used|disabled/i.test(msg) ? "Ative a Google Drive API no seu projeto do Google Cloud." : /export|too large/i.test(msg) ? "Arquivo grande demais para exportar." : "O Drive recusou o pedido (403)."); }
+    if (r.status === 404) throw new Error("Arquivo não encontrado no Drive.");
+    if (!r.ok) throw new Error("Erro do Drive (" + r.status + ").");
+    return r;
+  }
+  var GKIND = { "application/vnd.google-apps.document": ["text/plain", "Google Docs"], "application/vnd.google-apps.spreadsheet": ["text/csv", "Planilhas"], "application/vnd.google-apps.presentation": ["text/plain", "Apresentações"] };
+  function gdSupported(f) { return !!GKIND[f.mimeType] || canRead(f.name, f.mimeType); }
+  async function gdFileText(f) {
+    var base = "https://www.googleapis.com/drive/v3/files/" + encodeURIComponent(f.id), g = GKIND[f.mimeType], r;
+    if (g) { r = await gdFetch(base + "/export?mimeType=" + encodeURIComponent(g[0])); return { text: await r.text(), mime: g[0] }; }
+    r = await gdFetch(base + "?alt=media&supportsAllDrives=true");
+    var blob = await r.blob();
+    return { text: await extractText(blob, f.name, f.mimeType), mime: f.mimeType, size: blob.size };
+  }
+  async function gdList(more) {
+    if (!more) { GD.next = ""; GD.files = {}; $("l-glist").innerHTML = ""; }
+    $("b-gmore").hidden = true; prog("Buscando arquivos no Drive…");
+    var q = "trashed=false and mimeType != 'application/vnd.google-apps.folder'";
+    if (GD.q) q += " and name contains '" + GD.q.replace(/\\/g, "\\\\").replace(/'/g, "\\'") + "'";
+    var u = "https://www.googleapis.com/drive/v3/files?pageSize=50&supportsAllDrives=true&includeItemsFromAllDrives=true&orderBy=" + encodeURIComponent("modifiedTime desc") + "&fields=" + encodeURIComponent("nextPageToken,files(id,name,mimeType,modifiedTime,size)") + "&q=" + encodeURIComponent(q) + (more && GD.next ? "&pageToken=" + encodeURIComponent(GD.next) : "");
+    try {
+      var j = await (await gdFetch(u)).json(), fs = j.files || [];
+      GD.next = j.nextPageToken || "";
+      if (!more && !fs.length) $("l-glist").innerHTML = '<li><span class="sub">Nenhum arquivo encontrado.</span></li>';
+      $("l-glist").insertAdjacentHTML("beforeend", fs.map(function (f) {
+        GD.files[f.id] = f;
+        var sup = gdSupported(f), have = LIB.docs.some(function (d) { return d.source === "drive" && d.sourceId === f.id; });
+        var kind = GKIND[f.mimeType] ? GKIND[f.mimeType][1] : (fileExt(f.name) || "arquivo").toUpperCase();
+        return '<li><label class="x-check"><input type="checkbox" data-gid="' + esc(f.id) + '"' + (sup ? "" : " disabled") + ' /><span>' + esc(f.name) + "<small>" + esc(kind) + (f.size ? " · " + fmtSize(f.size) : "") + " · " + fmtDate(f.modifiedTime) + (have ? " · já na Biblioteca" : "") + (sup ? "" : " · não suportado") + "</small></span></label></li>";
+      }).join(""));
+      $("b-gmore").hidden = !GD.next; prog("");
+    } catch (e) { prog(e.message || "Erro ao listar o Drive."); }
+  }
+  $("b-gconn").onclick = async function () {
+    S.gdriveClientId = $("l-gcid").value.trim(); saveSettings();
+    if (!S.gdriveClientId) { toast("Cole o Google OAuth Client ID primeiro."); $("l-gcid").focus(); return; }
+    try { await gdToken(); } catch (e) { prog(e.message); return; }
+    $("l-gd").hidden = false; GD.q = $("l-gq").value.trim(); gdList(false);
+  };
+  $("b-gsearch").onclick = function () { GD.q = $("l-gq").value.trim(); gdList(false); };
+  $("l-gq").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); $("b-gsearch").click(); } });
+  $("b-gmore").onclick = function () { gdList(true); };
+  $("b-gclose").onclick = function () { $("l-gd").hidden = true; };
+  async function gdImport(files, label) {
+    await LIB.ready;
+    var ok = 0, fail = [];
+    for (var i = 0; i < files.length; i++) {
+      var f = files[i];
+      prog(label + " " + (i + 1) + "/" + files.length + ": " + f.name + "…");
+      try {
+        var r = await gdFileText(f), t = cleanText(r.text);
+        if (!t) throw new Error("sem texto");
+        await libSave({ id: "gd_" + f.id, title: f.name, source: "drive", sourceId: f.id, text: t, size: r.size || +f.size || 0, mime: f.mimeType, remoteMod: f.modifiedTime || "" });
+        ok++; renderLib();
+      } catch (e) { fail.push(f.name + " (" + (e.message || "erro") + ")"); if (/expirou|Client ID|bloqueou|cancelado/.test(e.message || "")) break; }
+    }
+    prog(fail.length ? "Falhou: " + fail.join("; ") : ""); renderLib();
+    return ok;
+  }
+  $("b-gimp").onclick = async function () {
+    var sel = [].slice.call($("l-glist").querySelectorAll("input[data-gid]:checked")).map(function (c) { return GD.files[c.dataset.gid]; }).filter(Boolean);
+    if (!sel.length) { toast("Marque pelo menos um arquivo."); return; }
+    var ok = await gdImport(sel, "Importando");
+    if (ok) { toast(ok + (ok === 1 ? " arquivo importado" : " arquivos importados")); $("l-glist").querySelectorAll("input:checked").forEach(function (c) { c.checked = false; }); }
+  };
+  $("b-gsync").onclick = async function () {
+    await LIB.ready;
+    var docs = LIB.docs.filter(function (d) { return d.source === "drive" && d.sourceId; });
+    if (!docs.length) { toast("Nenhum arquivo do Drive na Biblioteca."); return; }
+    if (!S.gdriveClientId) { toast("Cole o Google OAuth Client ID primeiro."); $("l-gcid").focus(); return; }
+    try { await gdToken(); } catch (e) { prog(e.message); return; }
+    var todo = [], gone = 0;
+    for (var i = 0; i < docs.length; i++) {
+      prog("Verificando " + (i + 1) + "/" + docs.length + "…");
+      try {
+        var m = await (await gdFetch("https://www.googleapis.com/drive/v3/files/" + encodeURIComponent(docs[i].sourceId) + "?supportsAllDrives=true&fields=" + encodeURIComponent("id,name,mimeType,modifiedTime,size,trashed"))).json();
+        if (m.trashed) { gone++; continue; }
+        if (m.modifiedTime !== docs[i].remoteMod || m.name !== docs[i].title) todo.push(m);
+      } catch (e) { if (/não encontrado/.test(e.message)) gone++; else { prog(e.message); return; } }
+    }
+    var ok = todo.length ? await gdImport(todo, "Atualizando") : 0;
+    toast(todo.length ? ok + " de " + todo.length + " atualizados" : "Tudo em dia com o Drive");
+    if (gone) prog(gone + (gone === 1 ? " arquivo não existe mais" : " arquivos não existem mais") + " no Drive (mantidos na Biblioteca).");
+  };
+
+  /* ClickUp (token pessoal, só neste aparelho) */
+  var CU = { teams: [], spaces: [] };
+  $("l-cutok").onchange = function () { S.clickupToken = this.value.trim(); saveSettings(); if (S.clickupToken) toast("Token do ClickUp salvo"); };
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  async function cuGet(path, note) {
+    for (var tries = 0; ; tries++) {
+      var r;
+      try { r = await fetch(CU_API + path, { headers: { Authorization: S.clickupToken } }); }
+      catch (e) { throw new Error("Sem conexão com o ClickUp."); }
+      if (r.status === 429 && tries < 6) {
+        var reset = +r.headers.get("X-RateLimit-Reset"), wait = reset ? Math.max(2, Math.min(70, Math.ceil(reset - Date.now() / 1000) + 1)) : 15 * (tries + 1);
+        for (var s = wait; s > 0; s--) { prog("Limite do ClickUp atingido. Aguardando " + s + "s…" + (note ? " (" + note + ")" : "")); await sleep(1000); }
+        continue;
+      }
+      if (r.status === 401) throw new Error("Token do ClickUp inválido.");
+      if (!r.ok) throw new Error("Erro do ClickUp (" + r.status + ").");
+      return r.json();
+    }
+  }
+  var CU_PRI = { urgent: "Urgente", high: "Alta", normal: "Normal", low: "Baixa" };
+  function cuTaskText(t) {
+    var L = ["## " + (t.name || "(sem nome)") + (t.parent ? " (subtarefa)" : "")];
+    if (t.status && t.status.status) L.push("Status: " + t.status.status);
+    var as = (t.assignees || []).map(function (a) { return a.username || a.email || ""; }).filter(Boolean);
+    if (as.length) L.push("Responsáveis: " + as.join(", "));
+    if (t.start_date) L.push("Início: " + fmtDate(+t.start_date));
+    if (t.due_date) L.push("Prazo: " + fmtDate(+t.due_date));
+    if (t.priority && t.priority.priority) L.push("Prioridade: " + (CU_PRI[t.priority.priority] || t.priority.priority));
+    var tg = (t.tags || []).map(function (x) { return x.name; }).filter(Boolean);
+    if (tg.length) L.push("Tags: " + tg.join(", "));
+    if (t.url) L.push("URL: " + t.url);
+    var ds = String(t.text_content || t.description || "").trim();
+    if (ds) L.push("Descrição: " + ds);
+    return L.join("\n");
+  }
+  async function cuListDoc(info, note) {
+    var tasks = [];
+    for (var page = 0; page < 200; page++) {
+      var j = await cuGet("/list/" + encodeURIComponent(info.listId) + "/task?include_closed=true&subtasks=true&page=" + page, note);
+      var ts = j.tasks || [];
+      tasks = tasks.concat(ts);
+      if (!ts.length || j.last_page === true || j.last_page == null && ts.length < 100) break;
+    }
+    var title = "ClickUp: " + info.space + " / " + info.list;
+    var head = title + (info.folder ? "\nPasta: " + info.folder : "") + "\nTarefas: " + tasks.length;
+    return libSave({ id: "cu_" + info.listId, title: title, source: "clickup", sourceId: info.listId, text: head + "\n\n" + tasks.map(cuTaskText).join("\n\n"), mime: "text/plain", meta: { teamId: info.teamId || "", spaceId: info.spaceId || "", space: info.space, folder: info.folder || "", list: info.list } });
+  }
+  async function cuRun(infos, verb) {
+    await LIB.ready;
+    var ok = 0, fail = [];
+    for (var i = 0; i < infos.length; i++) {
+      var note = verb + " " + (i + 1) + "/" + infos.length + " listas";
+      prog(note + "… " + infos[i].space + " / " + infos[i].list);
+      try { await cuListDoc(infos[i], note); ok++; renderLib(); }
+      catch (e) { fail.push(infos[i].list + " (" + (e.message || "erro") + ")"); if (/inválido|conexão/.test(e.message || "")) break; }
+    }
+    prog(fail.length ? "Falhou: " + fail.join("; ") : ""); renderLib();
+    return ok;
+  }
+  function renderCuSpaces() {
+    $("l-cusp").innerHTML = CU.spaces.length ? CU.spaces.map(function (sp) { return '<li><label class="x-check"><input type="checkbox" data-sid="' + esc(String(sp.id)) + '" /><span>' + esc(sp.name || "Espaço") + "</span></label></li>"; }).join("") : '<li><span class="sub">Nenhum espaço neste workspace.</span></li>';
+  }
+  async function cuLoadSpaces() {
+    var tid = $("l-cuteam").value; CU.spaces = []; $("l-cusp").innerHTML = "";
+    if (!tid) return;
+    prog("Carregando espaços…");
+    try { CU.spaces = (await cuGet("/team/" + encodeURIComponent(tid) + "/space?archived=false")).spaces || []; renderCuSpaces(); prog(""); }
+    catch (e) { prog(e.message); }
+  }
+  $("b-cuimp").onclick = async function () {
+    S.clickupToken = $("l-cutok").value.trim(); saveSettings();
+    if (!S.clickupToken) { toast("Cole o token pessoal do ClickUp primeiro."); $("l-cutok").focus(); return; }
+    prog("Conectando ao ClickUp…");
+    try { CU.teams = (await cuGet("/team")).teams || []; }
+    catch (e) { prog(e.message); return; }
+    if (!CU.teams.length) { prog("Nenhum workspace encontrado nesse token."); return; }
+    $("l-cuteam").innerHTML = CU.teams.map(function (t) { return '<option value="' + esc(String(t.id)) + '">' + esc(t.name || "Workspace") + "</option>"; }).join("");
+    $("l-cu").hidden = false; cuLoadSpaces();
+  };
+  $("l-cuteam").onchange = cuLoadSpaces;
+  $("b-cuclose").onclick = function () { $("l-cu").hidden = true; };
+  $("b-cugo").onclick = async function () {
+    var ids = [].slice.call($("l-cusp").querySelectorAll("input[data-sid]:checked")).map(function (c) { return c.dataset.sid; });
+    if (!ids.length) { toast("Marque pelo menos um espaço."); return; }
+    var tid = $("l-cuteam").value, infos = [];
+    try {
+      for (var i = 0; i < ids.length; i++) {
+        var sp = CU.spaces.find(function (x) { return String(x.id) === ids[i]; }) || { id: ids[i], name: "Espaço" };
+        prog("Lendo listas do espaço " + sp.name + "…");
+        var fo = (await cuGet("/space/" + encodeURIComponent(sp.id) + "/folder?archived=false")).folders || [];
+        var fl = (await cuGet("/space/" + encodeURIComponent(sp.id) + "/list?archived=false")).lists || [];
+        fl.forEach(function (l) { infos.push({ teamId: tid, spaceId: sp.id, space: sp.name, folder: "", list: l.name, listId: String(l.id) }); });
+        for (var k = 0; k < fo.length; k++) {
+          var lists = fo[k].lists;
+          if (!Array.isArray(lists)) lists = (await cuGet("/folder/" + encodeURIComponent(fo[k].id) + "/list?archived=false")).lists || [];
+          lists.forEach(function (l) { infos.push({ teamId: tid, spaceId: sp.id, space: sp.name, folder: fo[k].name, list: l.name, listId: String(l.id) }); });
+        }
+      }
+    } catch (e) { prog(e.message); return; }
+    if (!infos.length) { prog("Nenhuma lista encontrada nesses espaços."); return; }
+    var ok = await cuRun(infos, "Importando");
+    if (ok) toast(ok + (ok === 1 ? " lista importada" : " listas importadas"));
+  };
+  $("b-cusync").onclick = async function () {
+    await LIB.ready;
+    S.clickupToken = $("l-cutok").value.trim() || S.clickupToken; saveSettings();
+    if (!S.clickupToken) { toast("Cole o token pessoal do ClickUp primeiro."); $("l-cutok").focus(); return; }
+    var infos = LIB.docs.filter(function (d) { return d.source === "clickup" && d.sourceId; }).map(function (d) {
+      var m = d.meta || {}, parts = d.title.replace(/^ClickUp:\s*/, "").split(" / ");
+      return { teamId: m.teamId || "", spaceId: m.spaceId || "", space: m.space || parts[0] || "ClickUp", folder: m.folder || "", list: m.list || parts.slice(1).join(" / ") || "Lista", listId: d.sourceId };
+    });
+    if (!infos.length) { toast("Nenhuma lista do ClickUp na Biblioteca."); return; }
+    var ok = await cuRun(infos, "Atualizando");
+    if (ok) toast(ok + " de " + infos.length + " listas atualizadas");
+  };
+
   /* backup (never the key) */
-  $("b-exp").onclick = function () {
-    var data = { app: "HarllenBot", version: 2, exported: new Date().toISOString(), settings: { provider: S.provider, model: S.pm[S.provider], sys: S.sys, mem: S.mem, bots: S.bots, sel: S.sel }, convs: convs };
+  $("b-exp").onclick = async function () {
+    var data = { app: "HarllenBot", version: 2, exported: new Date().toISOString(), settings: { provider: S.provider, model: S.pm[S.provider], sys: S.sys, mem: S.mem, bots: S.bots, sel: S.sel, libOn: S.libOn }, convs: convs };
+    if ($("s-bkplib").checked) { try { await LIB.ready; } catch (e) {} data.library = LIB.docs.map(function (d) { return { id: d.id, title: d.title, source: d.source, sourceId: d.sourceId || "", text: d.text, size: d.size || 0, mime: d.mime || "", meta: d.meta || null, remoteMod: d.remoteMod || "", updated: d.updated }; }); }
     var a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: "application/json" }));
     a.download = "harllenbot-backup-" + new Date().toISOString().slice(0, 10) + ".json";
@@ -1622,12 +2207,14 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     f.text().then(function (t) {
       var d = JSON.parse(t);
       if (!d || !Array.isArray(d.convs)) throw 0;
-      if (d.settings) { if (PROVIDERS[d.settings.provider]) S.provider = d.settings.provider; if (typeof d.settings.model === "string" && d.settings.model) { S.pm[S.provider] = d.settings.model; if (S.provider === "google") S.model = d.settings.model; } if (d.settings.sys) S.sys = d.settings.sys; if (Array.isArray(d.settings.mem)) S.mem = d.settings.mem.map(String); if (Array.isArray(d.settings.bots) && d.settings.bots.some(function (b) { return b && b.id === "main"; })) { S.bots = d.settings.bots.filter(function (b) { return b && b.id; }); S.sel = botById(d.settings.sel).id; } }
+      if (d.settings) { if (PROVIDERS[d.settings.provider]) S.provider = d.settings.provider; if (typeof d.settings.model === "string" && d.settings.model) { S.pm[S.provider] = d.settings.model; if (S.provider === "google") S.model = d.settings.model; } if (d.settings.sys) S.sys = d.settings.sys; if (Array.isArray(d.settings.mem)) S.mem = d.settings.mem.map(String); if (Array.isArray(d.settings.bots) && d.settings.bots.some(function (b) { return b && b.id === "main"; })) { S.bots = d.settings.bots.filter(function (b) { return b && b.id; }); S.sel = botById(d.settings.sel).id; } if (typeof d.settings.libOn === "boolean") S.libOn = d.settings.libOn; }
+      var libP = Array.isArray(d.library) && d.library.length ? libImportBackup(d.library) : Promise.resolve(0);
       var ids = convs.map(function (c) { return c.id; });
       d.convs.forEach(function (c) { if (c && c.id && Array.isArray(c.msgs) && ids.indexOf(c.id) < 0) convs.push({ id: c.id, title: String(c.title || "Conversa"), msgs: c.msgs, ts: c.ts || 0 }); });
       convs = convs.filter(function (c) { return c.msgs.length || c.id === curId; });
       convs.sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
-      saveSettings(); saveConvs(); openSet(); toast("Backup importado");
+      saveSettings(); saveConvs(); openSet();
+      return libP.then(function (n) { toast(n ? "Backup importado (" + n + " documentos)" : "Backup importado"); });
     }).catch(function () { toast("Arquivo de backup inválido."); }).finally(function () { self.value = ""; });
   };
 
