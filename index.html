@@ -1006,6 +1006,12 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
 
       /* conversas fixadas e renomear (menu lateral) */
       .x-pin.is-on { color: var(--acc-1); background: var(--acc-soft); }
+
+      /* linha de progresso da mesa-redonda (acima do composer) */
+      .x-gstatus { max-width: 760px; margin: 0 auto 8px; padding: 7px 12px; border-radius: var(--r-pill); background: var(--acc-soft); color: var(--acc-ink); font: var(--type-caption); font-weight: 600; display: flex; align-items: center; gap: 8px; }
+      .x-gstatus[hidden] { display: none; }
+      .x-gstatus::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--acc-1); flex: none; animation: hb-gs 1s ease-in-out infinite; }
+      @keyframes hb-gs { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.75); } }
       .x-renin { flex: 1; min-width: 0; font: var(--type-callout); color: var(--label-1); background: var(--surface-1); border: 1px solid var(--acc-1); border-radius: var(--r-sm); padding: 6px 8px; }
 
       /* seletor de cor de destaque (Configurações › Aparência) */
@@ -1043,6 +1049,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
       </div>
       <main class="x-list" id="list" aria-live="polite"><div class="x-inner" id="msgs"></div></main>
       <footer class="x-comp" id="comp">
+        <div class="x-gstatus" id="gstatus" hidden></div>
         <div class="x-prev" id="prev" hidden><span id="prev-box"></span><span>Imagem anexada</span><button class="x-ib" id="b-unatt" aria-label="Remover imagem">✕</button></div>
         <div class="x-comp-in" id="form">
           <label class="x-ib" for="f-img" aria-label="Anexar imagem" title="Anexar imagem"><svg viewBox="0 0 24 24"><path d="M21 12.5l-8.5 8.5a5 5 0 0 1-7-7L14 5.5a3.3 3.3 0 0 1 4.7 4.7L10.2 18.7a1.7 1.7 0 0 1-2.4-2.4L15.5 8.6"/></svg></label>
@@ -1769,7 +1776,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     $("b-send").innerHTML = on ? '<svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/></svg>' : '<svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
   }
   async function generate(bid) {
-    var c = cur(), b = botById(bid || "main"), ok = false; lastErr = null; lastBot = b.id;
+    var c = cur(), b = botById(bid || "main"), ok = false; lastErr = null; lastBot = b.id; speakingId = b.id;
     var hist = contents(c.msgs, b.id);
     var bot = { role: "model", text: "", botId: b.id, mid: uid() };
     c.msgs.push(bot); render();
@@ -1790,7 +1797,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     if (!ok && !bot.text && !bot.call && c.msgs.indexOf(bot) >= 0) c.msgs.splice(c.msgs.indexOf(bot), 1);
     if (ok && !bot.text && !bot.call) bot.text = "_(Sem resposta. Tente reformular a pergunta.)_";
     if (ok && rag && rag.titles.length && !bot.call && bot.text) bot.src = rag.titles;
-    busy = null; setBusy(false); c.ts = Date.now(); saveConvs(); render();
+    busy = null; speakingId = null; setBusy(false); c.ts = Date.now(); saveConvs(); render();
     if (tgt && cur() === c) generate(tgt.id);
   }
   function norm(s) { return String(s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, ""); }
@@ -1989,7 +1996,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     if (grp) { $("t-av").textContent = "👥"; $("t-bot").textContent = "Mesa-redonda"; inp.placeholder = "Pergunte ao grupo…"; avBg($("t-av"), null); }
     else { $("t-av").textContent = b.av; $("t-bot").textContent = b.name; inp.placeholder = b.id === "main" ? "Pergunte qualquer coisa…" : "Mensagem para " + b.name + "…"; avBg($("t-av"), b); }
     pop.innerHTML = S.bots.map(function (x) {
-      return '<button type="button" role="menuitem" class="x-popi' + (!grp && x.id === S.sel ? " is-on" : "") + '" data-id="' + esc(x.id) + '"><span class="x-av"' + avStyle(x) + ">" + esc(x.av) + "</span><span>" + (x.id === "main" ? "Automático (" + esc(x.name) + " decide)" : esc(x.name) + " <small>@" + esc(x.id) + " · " + esc(x.desc || "") + "</small>") + "</span></button>";
+      return '<button type="button" role="menuitem" class="x-popi' + (!grp && x.id === S.sel ? " is-on" : "") + '" data-id="' + esc(x.id) + '"><span class="x-av"' + avStyle(x) + ">" + esc(x.av) + "</span><span>" + (x.id === "main" ? "Automático (" + esc(x.name) + " decide)" : esc(x.name) + " <small>@" + esc(x.id) + " · " + esc(x.desc || "") + (speakingId === x.id ? " · respondendo…" : "") + "</small>") + "</span></button>";
     }).join("") + '<button type="button" role="menuitem" class="x-popi x-grp"><span class="x-av">👥</span><span>Mesa-redonda <small>vários bots discutindo juntos</small></span></button>';
   }
   function selectBot(id) { if (busy) { pop.hidden = true; toast("Aguarde a resposta terminar pra trocar de bot."); return; } if (cur() && cur().group) { pop.hidden = true; toast("Nesta mesa-redonda todos respondem juntos. Pra falar com um bot só, crie uma conversa nova."); return; } S.sel = botById(id).id; saveSettings(); pop.hidden = true; render(); toast("Falando com " + botById(S.sel).name); }
@@ -1999,7 +2006,8 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") pop.hidden = true; });
 
   /* mesa-redonda (conversa em grupo) */
-  var grpCtx = null, grpActive = false, grpStop = false;
+  var grpCtx = null, grpActive = false, grpStop = false, speakingId = null;
+  function setGStatus(t) { var el = $("gstatus"); if (!el) return; if (t) { el.textContent = t; el.hidden = false; } else el.hidden = true; }
   function openGroup() {
     var sp = S.bots.filter(function (x) { return x.id !== "main"; });
     $("g-members").innerHTML = sp.length ? sp.map(function (b) { return '<li><label class="x-check"><input type="checkbox" data-gid="' + esc(b.id) + '" checked /><span class="x-av"' + avStyle(b) + ">" + esc(b.av) + '</span><span><b>' + esc(b.name) + "</b> <small>" + esc(b.desc || "") + "</small></span></label></li>"; }).join("") : '<li><span class="sub">Você ainda não tem especialistas. Crie em Configurações › Time de bots.</span></li>';
@@ -2020,15 +2028,16 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     var names = members.map(function (b) { return b.av + " " + b.name; }).join(", ");
     grpActive = true; grpStop = false; setBusy(true);
     try {
-      var turn = async function (b, phase) { grpCtx = { phase: phase, names: names }; await generate(b.id); setBusy(true); return !(grpStop || lastErr || cur() !== c); };
+      var turn = async function (b, phase) { grpCtx = { phase: phase, names: names }; setGStatus(phase === "r2" ? "Rodada 2 de 2 · " + b.av + " " + b.name + " debatendo…" : "Rodada 1 de 2 · " + b.av + " " + b.name + " respondendo…"); await generate(b.id); setBusy(true); return !(grpStop || lastErr || cur() !== c); };
       var i;
       for (i = 0; i < members.length; i++) { if (!await turn(members[i], "r1")) return; }
       for (i = 0; i < members.length; i++) { if (!await turn(members[i], "r2")) return; }
+      setGStatus("HarllenBot preparando a síntese…");
       grpCtx = { phase: "synth", names: names };
       await generate("main");
       var lm = c.msgs[c.msgs.length - 1];
       if (lm && lm.role === "model" && lm.botId === "main" && lm.text && !lm.call) { lm.synth = true; saveConvs(); render(); }
-    } finally { grpCtx = null; grpActive = false; setBusy(false); }
+    } finally { grpCtx = null; grpActive = false; setBusy(false); setGStatus(null); }
   }
 
   /* manage bots */
@@ -2933,7 +2942,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     gdSilent().then(function (ok) { if (ok) syncNow(false); });
   });
   /* auto-atualização: se sair versão nova, recarrega sozinho (uma vez) */
-  var APP_V = "20261008-34";
+  var APP_V = "20261008-35";
   setTimeout(function () {
     fetch(location.pathname, { cache: "no-store" }).then(function (r) { return r.text(); }).then(function (t) {
       var m = t.match(/var APP_V = "([^"]+)"/);
