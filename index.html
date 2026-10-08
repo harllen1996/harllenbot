@@ -2526,7 +2526,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
       if (remote && remote.app === "HarllenBotSync") changed = await applyRemote(remote);
       var data = syncPayload();
       await uploadSync(data);
-      S.syncTs = data.updatedAt; syncDirty = false;
+      S.syncTs = data.updatedAt; syncDirty = false; sset("hb_syncmute", 0);
       syncInfo("Sincronizado às " + syncStamp() + " · arquivo '" + SYNC_NAME + "' no seu Drive.");
       sset("hb_settings", S);
       if (changed) { sset("hb_cur", curId); sset("hb_convs", convs); render(); renderLib(); }
@@ -2573,7 +2573,9 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     renderGDState(); toast("Google Drive desconectado neste aparelho.");
   };
   /* barra "Sincronizar": o Google exige um toque para reconectar a cada abertura */
-  var syncBarOff = false;
+  var syncBarOff = false, lastSilentTry = 0;
+  /* ✕ na barrinha: não pede de novo por 24h neste aparelho */
+  function syncMuted() { var t = +sget("hb_syncmute", 0) || 0; return t > 0 && Date.now() - t < 864e5; }
   function syncBar(show) {
     var el = $("syncbar");
     if (!show) { if (el) el.remove(); return; }
@@ -2584,7 +2586,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     var b = document.createElement("button"); b.type = "button"; b.textContent = "Sincronizar"; b.style.cssText = "border:0;border-radius:999px;padding:8px 14px;font:inherit;font-weight:600;background:var(--text-primary-on);color:var(--fill-primary);cursor:pointer";
     var x = document.createElement("button"); x.type = "button"; x.textContent = "✕"; x.setAttribute("aria-label", "Fechar"); x.style.cssText = "border:0;background:transparent;color:inherit;font:inherit;padding:6px;cursor:pointer";
     b.onclick = function () { syncBar(false); syncNow(true); };
-    x.onclick = function () { syncBarOff = true; syncBar(false); };
+    x.onclick = function () { syncBarOff = true; sset("hb_syncmute", Date.now()); syncBar(false); toast("Beleza, não peço de novo hoje. Pra sincronizar, é nas Configurações."); };
     var w = document.createElement("div"); w.style.cssText = "display:flex;gap:4px;align-items:center"; w.appendChild(b); w.appendChild(x);
     el.appendChild(t); el.appendChild(w); document.body.appendChild(el);
   }
@@ -2606,12 +2608,20 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
       });
     }).catch(function () { return false; });
   }
-  if (syncWanted()) setTimeout(function () { if (!syncTokenOk()) gdSilent().then(function (ok) { if (ok) syncNow(false); else if (!syncBarOff) syncBar(true); }); }, 1200);
-  touchSync = (function (orig) { return function () { orig(); if (syncWanted() && !syncBarOff && !syncTokenOk() && !syncBusy) syncBar(true); }; })(touchSync);
+  if (syncWanted()) setTimeout(function () { if (!syncTokenOk()) gdSilent().then(function (ok) { if (ok) syncNow(false); else if (!syncBarOff && !syncMuted()) syncBar(true); }); }, 1200);
+  touchSync = (function (orig) { return function () { orig(); if (syncWanted() && !syncBarOff && !syncMuted() && !syncTokenOk() && !syncBusy) syncBar(true); }; })(touchSync);
   document.addEventListener("visibilitychange", function () { if (document.visibilityState === "hidden" && syncDirty && S.syncOn && syncTokenOk() && !syncBusy) syncNow(false); });
-  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible" && S.syncOn && syncTokenOk() && !syncBusy) syncNow(false); });
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState !== "visible" || !S.syncOn || syncBusy) return;
+    if (syncTokenOk()) { syncNow(false); return; }
+    if (!syncWanted()) return;
+    var now = Date.now();
+    if (now - lastSilentTry < 300000) return; /* no máximo 1 tentativa silenciosa a cada 5 min */
+    lastSilentTry = now;
+    gdSilent().then(function (ok) { if (ok) syncNow(false); });
+  });
   /* auto-atualização: se sair versão nova, recarrega sozinho (uma vez) */
-  var APP_V = "20261008-11";
+  var APP_V = "20261008-12";
   setTimeout(function () {
     fetch(location.pathname, { cache: "no-store" }).then(function (r) { return r.text(); }).then(function (t) {
       var m = t.match(/var APP_V = "([^"]+)"/);
