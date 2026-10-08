@@ -1531,10 +1531,64 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   function saveSettings() { S.editTs = Date.now(); sset("hb_settings", S); }
   function saveConvs() {
     sset("hb_cur", curId);
+    if (CDB.ok) {
+      /* Com o banco local ativo, ele e a fonte principal; o espelho em localStorage
+         continua como backup, mas pode falhar em silencio quando estiver cheio. */
+      sset("hb_convs", convs);
+      cdbSaveAll(convs);
+      return;
+    }
     if (!sset("hb_convs", convs)) {
       var slim = convs.map(function (c) { return Object.assign({}, c, { msgs: c.msgs.map(function (m) { var n = Object.assign({}, m); delete n.img; return n; }) }); });
       if (!sset("hb_convs", slim)) toast("Armazenamento cheio: apague conversas antigas.");
     }
+  }
+
+  /* Banco local das conversas (IndexedDB "harllenbot-convs"): sem o teto de ~5 MB do
+     localStorage. Nesta versao o localStorage segue como espelho de seguranca; sem
+     IndexedDB disponivel, tudo se comporta exatamente como antes. */
+  var CDB = { db: null, ok: false, ready: null }, cdbKnown = {};
+  function cdbOpen() {
+    if (!("indexedDB" in window)) return Promise.resolve(null);
+    return new Promise(function (res) {
+      var rq;
+      try { rq = indexedDB.open("harllenbot-convs", 1); } catch (e) { res(null); return; }
+      rq.onupgradeneeded = function () { var d = rq.result; if (!d.objectStoreNames.contains("convs")) d.createObjectStore("convs", { keyPath: "id" }); };
+      rq.onsuccess = function () { res(rq.result); };
+      rq.onerror = function () { res(null); };
+      rq.onblocked = function () { res(null); };
+    });
+  }
+  function cdbTx(mode, fn) {
+    if (!CDB.db) return Promise.resolve(false);
+    return new Promise(function (res) {
+      try {
+        var tx = CDB.db.transaction("convs", mode);
+        fn(tx.objectStore("convs"));
+        tx.oncomplete = function () { res(true); };
+        tx.onerror = function () { res(false); };
+        tx.onabort = function () { res(false); };
+      } catch (e) { res(false); }
+    });
+  }
+  function cdbAll() {
+    if (!CDB.db) return Promise.resolve(null);
+    return new Promise(function (res) {
+      try {
+        var rq = CDB.db.transaction("convs", "readonly").objectStore("convs").getAll();
+        rq.onsuccess = function () { res(rq.result || []); };
+        rq.onerror = function () { res(null); };
+      } catch (e) { res(null); }
+    });
+  }
+  function cdbSaveAll(list) {
+    if (!CDB.db) return;
+    var now = {};
+    list.forEach(function (c) { if (c && c.id) now[c.id] = 1; });
+    cdbTx("readwrite", function (st) {
+      list.forEach(function (c) { if (c && c.id) st.put(c); });
+      Object.keys(cdbKnown).forEach(function (id) { if (!now[id]) st.delete(id); });
+    }).then(function (okTx) { if (okTx) cdbKnown = now; });
   }
   function newConv() {
     var c = cur();
@@ -2846,7 +2900,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
       S.syncTs = data.updatedAt; syncDirty = false; lastSyncAt = Date.now(); sset("hb_syncmute", 0);
       syncInfo("Sincronizado às " + syncStamp() + " · arquivo '" + SYNC_NAME + "' no seu Drive.");
       sset("hb_settings", S);
-      if (changed) { sset("hb_cur", curId); sset("hb_convs", convs); render(); renderLib(); }
+      if (changed) { sset("hb_cur", curId); saveConvs(); render(); renderLib(); }
       syncBar(false);
       if (manual) toast("Sincronizado com seu Drive ✓");
     } catch (e) {
@@ -2942,13 +2996,43 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     gdSilent().then(function (ok) { if (ok) syncNow(false); });
   });
   /* auto-atualização: se sair versão nova, recarrega sozinho (uma vez) */
-  var APP_V = "20261008-35";
+  var APP_V = "20261008-36";
   setTimeout(function () {
     fetch(location.pathname, { cache: "no-store" }).then(function (r) { return r.text(); }).then(function (t) {
       var m = t.match(/var APP_V = "([^"]+)"/);
       if (m && m[1] !== APP_V && !sessionStorage.getItem("hb_upd")) { sessionStorage.setItem("hb_upd", "1"); toast("Nova versão do HarllenBot! Atualizando…"); setTimeout(function () { location.reload(); }, 900); }
     }).catch(function () {});
   }, 4000);
+
+  /* Migracao das conversas pro banco local: na primeira vez copia tudo do
+     localStorage; depois, une os dois lados (mais mensagens vence; tumulos nao
+     ressuscitam) e passa a salvar nos dois, com o banco mandando. */
+  CDB.ready = cdbOpen().then(function (db) {
+    if (!db) return;
+    CDB.db = db;
+    return cdbAll().then(function (rows) {
+      if (!rows) { CDB.db = null; return; }
+      CDB.ok = true;
+      rows.forEach(function (r) { if (r && r.id) cdbKnown[r.id] = 1; });
+      if (!rows.length) { if (convs.length) cdbSaveAll(convs); return; }
+      var byId = {}, changed = false, merged = convs.slice();
+      convs.forEach(function (c) { byId[c.id] = c; });
+      rows.forEach(function (r) {
+        if (!r || !r.id || TOMB.c[r.id]) return;
+        var l = byId[r.id];
+        if (!l) { merged.push(r); changed = true; return; }
+        var rm = (r.msgs || []).length, lm = (l.msgs || []).length;
+        if (rm > lm || (rm === lm && (r.ts || 0) > (l.ts || 0))) { merged[merged.indexOf(l)] = r; changed = true; }
+      });
+      merged = merged.filter(function (c) { return !TOMB.c[c.id]; });
+      if (changed || merged.length !== convs.length) {
+        convs = merged;
+        if (!convs.length) convs.push({ id: uid(), title: "Nova conversa", msgs: [], ts: Date.now() });
+        if (!cur()) curId = convs[0].id;
+        saveConvs(); render();
+      } else saveConvs();
+    });
+  }).catch(function () {});
 
   render();
 })();
