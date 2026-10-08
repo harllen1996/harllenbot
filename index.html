@@ -2680,6 +2680,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
       if (manual) toast("Sincronizado com seu Drive ✓");
     } catch (e) {
       syncInfo("Não sincronizou: " + (e && e.message ? e.message : "erro desconhecido") + ". Toque em conectar/sincronizar para tentar de novo.");
+      sset("hb_settings", S);
       if (manual) toast("Não consegui sincronizar.");
     }
     syncBusy = false;
@@ -2770,7 +2771,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     gdSilent().then(function (ok) { if (ok) syncNow(false); });
   });
   /* auto-atualização: se sair versão nova, recarrega sozinho (uma vez) */
-  var APP_V = "20261008-22";
+  var APP_V = "20261008-23";
   setTimeout(function () {
     fetch(location.pathname, { cache: "no-store" }).then(function (r) { return r.text(); }).then(function (t) {
       var m = t.match(/var APP_V = "([^"]+)"/);
