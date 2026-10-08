@@ -1543,7 +1543,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     if (m.role === "user") return '<div class="x-msg x-msg--user">' + (m.img && validImgUrl(m.img.url) ? '<img class="x-img" alt="Imagem enviada" src="' + esc(m.img.url) + '">' : "") + (m.text ? '<div class="x-bub">' + esc(String(m.text)) + "</div>" : "") + "</div>";
     var b = botById(m.botId);
     if (m.call) { var t = botById(m.call); return '<div class="x-sys">' + esc(b.name) + " chamou " + esc(t.av) + " <b>" + esc(t.name) + "</b>" + (m.text ? "<br>" + esc(m.text) : "") + "</div>"; }
-    return '<div class="x-msg x-msg--model' + (m.synth ? " x-msg--synth" : "") + '" data-i="' + idx + '"><div class="x-who"><span class="x-av">' + esc(b.av) + "</span>" + esc(b.name) + (m.synth ? ' <span class="x-synth-tag">síntese</span>' : "") + '</div><div class="x-bub">' + md(m.text) + '</div>' + (Array.isArray(m.src) && m.src.length ? '<div class="x-src">Fontes: ' + esc(m.src.map(String).join(" · ")) + "</div>" : "") + '<div class="x-tools"><button class="x-ib x-copymsg" type="button">Copiar</button>' + ("speechSynthesis" in window ? '<button class="x-ib x-speak" type="button">Falar</button>' : "") + "</div></div>";
+    return '<div class="x-msg x-msg--model' + (m.synth ? " x-msg--synth" : "") + '" data-i="' + idx + '"><div class="x-who"><span class="x-av">' + esc(b.av) + "</span>" + esc(b.name) + (m.synth ? ' <span class="x-synth-tag">síntese</span>' : "") + '</div><div class="x-bub">' + md(m.text) + '</div>' + (Array.isArray(m.src) && m.src.length ? '<div class="x-src">Fontes: ' + esc(m.src.map(String).join(" · ")) + "</div>" : "") + '<div class="x-tools"><button class="x-ib x-copymsg" type="button">Copiar</button>' + ("speechSynthesis" in window ? '<button class="x-ib x-speak" type="button">Falar</button>' : "") + '<button class="x-ib x-libmsg" type="button">Salvar na Biblioteca</button></div></div>';
   }
   function render() {
     $("t-model").textContent = modelLabel();
@@ -1768,8 +1768,33 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     var box = t.closest(".x-msg"); if (!box) return;
     var m = cur().msgs[+box.dataset.i]; if (!m) return;
     if (t.classList.contains("x-copymsg")) copy(m.text, t);
+    if (t.classList.contains("x-libmsg")) saveMsgToLib(m, t);
     if (t.classList.contains("x-speak")) speak(m.text, t);
   });
+  /* "Salvar na Biblioteca" (conceito OpenDots: resposta aprovada vira conhecimento):
+     a resposta vira documento local (fonte "Conversa", titulo da pergunta anterior),
+     entra no indice de busca e sincroniza junto com os demais documentos. */
+  async function saveMsgToLib(m, btn) {
+    if (busy) { toast("Aguarde a resposta terminar pra salvar."); return; }
+    if (!m || m.role !== "model" || !String(m.text || "").trim()) return;
+    var c = cur(); if (!c) return;
+    var txt = String(m.text).replace(/\[\[CHAMAR:[^\]]+\]\]\s*/g, "").trim();
+    if (!txt) return;
+    var clean = cleanText(txt).trim();
+    if (LIB.docs.some(function (d) { return d.id === m.libDoc || String(d.text || "").trim() === clean; })) { toast("Essa resposta já está na Biblioteca ✓"); return; }
+    var b = botById(m.bot || "main");
+    var prev = "", ix = c.msgs.indexOf(m);
+    for (var j = ix - 1; j >= 0; j--) { if (c.msgs[j].role === "user" && c.msgs[j].text) { prev = String(c.msgs[j].text).trim(); break; } }
+    var title = (prev || txt.split("\n")[0]).replace(/\s+/g, " ").slice(0, 80) || ("Resposta de " + b.name);
+    try { await LIB.ready; } catch (e) {}
+    var docId = "p_" + uid();
+    await libSave({ id: docId, title: title, source: "chat", sourceId: "", text: txt, meta: { bot: b.name, conv: c.title || "" } });
+    m.libDoc = docId; saveConvs();
+    renderLib();
+    if (btn) { var o = btn.textContent; btn.textContent = "Salvo ✓"; setTimeout(function () { btn.textContent = o; }, 1400); }
+    toast("Salvo na Biblioteca ✓");
+    syncDirty = true; touchSync();
+  }
   function copy(text, btn) {
     var done = function () { var o = btn.textContent; btn.textContent = "Copiado!"; setTimeout(function () { btn.textContent = o; }, 1400); };
     if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
@@ -1978,7 +2003,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   var DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
   var CU_API = "https://api.clickup.com/api/v2";
   var LIB_HEAD = "Base de conhecimento do Harllen (use quando relevante e cite o título da fonte entre colchetes; se não estiver aqui, diga que não encontrou na Biblioteca):";
-  var SRC_LABEL = { file: "Arquivo", paste: "Texto colado", drive: "Drive", clickup: "ClickUp" };
+  var SRC_LABEL = { file: "Arquivo", paste: "Texto colado", drive: "Drive", clickup: "ClickUp", chat: "Conversa" };
   var SRC_ICON = { file: "📄", paste: "📝", drive: "🟢", clickup: "✅" };
   S.libOn = S.libOn !== false;
   S.gdriveClientId = typeof S.gdriveClientId === "string" ? S.gdriveClientId : "";
@@ -2786,7 +2811,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     gdSilent().then(function (ok) { if (ok) syncNow(false); });
   });
   /* auto-atualização: se sair versão nova, recarrega sozinho (uma vez) */
-  var APP_V = "20261008-28";
+  var APP_V = "20261008-29";
   setTimeout(function () {
     fetch(location.pathname, { cache: "no-store" }).then(function (r) { return r.text(); }).then(function (t) {
       var m = t.match(/var APP_V = "([^"]+)"/);
