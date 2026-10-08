@@ -1100,6 +1100,8 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
           </div>
           <div class="x-group">
             <h2><span class="x-hi"><svg viewBox="0 0 24 24"><path d="M12 20.5s-7.8-4.8-9.6-9.2A5.3 5.3 0 0 1 12 6.4a5.3 5.3 0 0 1 9.6 5.1c-1.8 4.4-9.6 9-9.6 9z"/></svg></span>Personalidade</h2>
+            <label class="x-field">Como quer ser chamado<input class="x-in" id="s-nome" placeholder="Harllen" maxlength="40" /></label>
+            <label class="x-field">Sugestões da tela inicial (uma por linha)<textarea class="x-in" id="s-sugg" rows="4"></textarea></label>
             <div class="x-chips" id="presets" style="justify-content:start"></div>
             <label class="x-field">Instrução do sistema<textarea class="x-in" id="s-sys"></textarea></label>
           </div>
@@ -1463,6 +1465,9 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   /* Cor própria do bot (b.cor em #rrggbb): gradiente inline; sem cor, vale o do app/posição. */
   function avStyle(b) { return b && /^#[0-9a-f]{6}$/i.test(b.cor || "") ? ' style="background:linear-gradient(135deg,' + b.cor + "," + hxShift(b.cor, 45) + ');color:#fff"' : ""; }
   function avBg(el, b) { if (!el) return; if (b && /^#[0-9a-f]{6}$/i.test(b.cor || "")) { el.style.background = "linear-gradient(135deg," + b.cor + "," + hxShift(b.cor, 45) + ")"; el.style.color = "#fff"; } else { el.style.background = ""; el.style.color = ""; } }
+  /* Nome de tratamento editavel (S.nome) e sugestoes da tela inicial (S.sugg). */
+  function myName() { return String(S.nome || "Harllen").trim() || "Harllen"; }
+  function effSugg() { return Array.isArray(S.sugg) && S.sugg.filter(function (s) { return String(s || "").trim(); }).length ? S.sugg : SUGG; }
   S.sel = S.bots.some(function (b) { return b.id === S.sel; }) ? S.sel : "main";
   var lastBot = "main";
   var HASH_KEY = "";
@@ -1592,7 +1597,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     if (!curKey()) { renderWelcome(); renderConvs(); return; }
     var c = cur();
     if (!c.msgs.length && !busy) {
-      msgsEl.innerHTML = '<div class="x-empty"><div class="x-logo">H</div><h2>Como posso ajudar, Harllen?</h2><div class="x-chips">' + SUGG.map(function (s) { return '<button class="x-chip x-sugg" type="button">' + s + "</button>"; }).join("") + '</div><div class="x-team">' +
+      msgsEl.innerHTML = '<div class="x-empty"><div class="x-logo">H</div><h2>Como posso ajudar, ' + esc(myName()) + '?</h2><div class="x-chips">' + effSugg().map(function (s) { return '<button class="x-chip x-sugg" type="button">' + esc(s) + "</button>"; }).join("") + '</div><div class="x-team">' +
         S.bots.map(function (b) { return '<button type="button" class="x-tcard' + (b.id === S.sel ? " is-on" : "") + '" data-bot="' + esc(b.id) + '"><span class="x-av"' + avStyle(b) + ">" + esc(b.av) + "</span><span><b>" + esc(b.name) + "</b><small>" + esc(b.desc || "") + "</small></span></button>"; }).join("") + "</div>" +
         (justSaved && S.provider === "google" ? '<div class="x-klink"><p>Chave salva! Crie um link para não precisar colar a chave de novo:</p><div class="links"><button type="button" class="btn" id="b-wlink">Criar link com minha chave</button></div><div id="w-link"></div></div>' : "") + "</div>";
       if (justSaved && S.provider === "google") { var bw = $("b-wlink"); if (bw) bw.onclick = function () { showKeyLink($("w-link")); }; justSaved = false; }
@@ -1658,10 +1663,10 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   function sysText(b, rag) {
     var sp = S.bots.filter(function (x) { return x.id !== "main"; });
     var base = b.id === "main" ? S.sys + (sp.length ? "\n\nVocê coordena um time de especialistas: " + sp.map(function (x) { return x.name + " (id " + x.id + ") — " + (x.desc || ""); }).join("; ") + ". Quando a pergunta for claramente da área de um especialista, comece sua resposta com uma linha exatamente assim: [[CHAMAR:<id>]] seguida de uma frase curta explicando por que, e não responda o resto. Caso contrário responda normalmente." : "") : (b.prompt || SP(b.name, (b.desc || "assuntos gerais") + "."));
-    var tail = (b.mem !== false && S.mem.length ? "\n\nFatos que você sabe sobre o Harllen:\n" + S.mem.map(function (f) { return "- " + f; }).join("\n") : "") + (rag && rag.text ? "\n\n" + rag.text : "") + appStatusText();
-    if (grpCtx && grpCtx.phase === "synth" && b.id === "main") return S.sys + tail + "\n\nMESA-REDONDA — SUA SÍNTESE FINAL: você moderou uma discussão entre especialistas (" + grpCtx.names + ") sobre a última pergunta do Harllen. Leia tudo o que foi dito e feche com: 1) onde houve consenso; 2) onde houve divergência — e qual lado é mais forte, com o porquê; 3) a recomendação prática final, com os próximos passos. Seja direto e decida; não repita a discussão inteira nem chame outro especialista.";
+    var tail = (b.mem !== false && S.mem.length ? "\n\nFatos que você sabe sobre o " + myName() + ":\n" + S.mem.map(function (f) { return "- " + f; }).join("\n") : "") + (rag && rag.text ? "\n\n" + rag.text : "") + appStatusText();
+    if (grpCtx && grpCtx.phase === "synth" && b.id === "main") return S.sys + tail + "\n\nMESA-REDONDA — SUA SÍNTESE FINAL: você moderou uma discussão entre especialistas (" + grpCtx.names + ") sobre a última pergunta do " + myName() + ". Leia tudo o que foi dito e feche com: 1) onde houve consenso; 2) onde houve divergência — e qual lado é mais forte, com o porquê; 3) a recomendação prática final, com os próximos passos. Seja direto e decida; não repita a discussão inteira nem chame outro especialista.";
     var out = base + tail;
-    if (grpCtx && grpCtx.phase === "r1") out += "\n\nMESA-REDONDA — RODADA DAS VISÕES: você está numa mesa-redonda com outros especialistas (" + grpCtx.names + ") debatendo a pergunta do Harllen. Dê a SUA visão, do seu ponto de vista de especialista, de forma direta e útil. Não fale pelos colegas nem tente resumir o grupo: defenda a sua posição. Se a pergunta fugir totalmente da sua área, diga isso em uma frase curta.";
+    if (grpCtx && grpCtx.phase === "r1") out += "\n\nMESA-REDONDA — RODADA DAS VISÕES: você está numa mesa-redonda com outros especialistas (" + grpCtx.names + ") debatendo a pergunta do " + myName() + ". Dê a SUA visão, do seu ponto de vista de especialista, de forma direta e útil. Não fale pelos colegas nem tente resumir o grupo: defenda a sua posição. Se a pergunta fugir totalmente da sua área, diga isso em uma frase curta.";
     else if (grpCtx && grpCtx.phase === "r2") out += "\n\nMESA-REDONDA — RODADA DA DISCUSSÃO: leia as respostas dos colegas acima (marcadas com [Nome]:). Comente os pontos deles: onde você concorda, onde discorda (e por quê) e o que você complementa ou corrige. Seja breve e construtivo; não repita a sua resposta anterior. O objetivo é o grupo chegar junto à melhor solução.";
     return out;
   }
@@ -1955,8 +1960,8 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     $("b-slink").style.display = S.provider === "google" ? "" : "none";
     if (S.provider !== "google") $("s-link").innerHTML = "";
   }
-  function openSet() { closeDrawer(); $("s-prov").value = S.provider; syncProvUI(); $("s-sys").value = S.sys; renderPresets(); renderMem(); renderBots(); closeEd(); $("sheet").classList.add("is-open"); }
-  function closeSet() { var v = $("s-sys").value.trim(); S.sys = v || DEF_SYS; S.cust[S.provider] = $("s-model2").value.trim(); saveSettings(); $("sheet").classList.remove("is-open"); render(); }
+  function openSet() { closeDrawer(); $("s-prov").value = S.provider; syncProvUI(); $("s-sys").value = S.sys; $("s-nome").value = S.nome || ""; $("s-sugg").value = effSugg().join("\n"); renderPresets(); renderMem(); renderBots(); closeEd(); $("sheet").classList.add("is-open"); }
+  function closeSet() { var v = $("s-sys").value.trim(); S.sys = v || DEF_SYS; S.nome = $("s-nome").value.trim().slice(0, 40); S.sugg = $("s-sugg").value.split("\n").map(function (x) { return x.trim().slice(0, 120); }).filter(Boolean).slice(0, 8); S.cust[S.provider] = $("s-model2").value.trim(); saveSettings(); $("sheet").classList.remove("is-open"); render(); }
   $("b-set").onclick = openSet; $("b-set2").onclick = openSet; $("b-close").onclick = closeSet;
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") { if ($("gsheet").classList.contains("is-open")) closeGroup(); else if ($("lib").classList.contains("is-open")) closeLib(); else if ($("sheet").classList.contains("is-open")) closeSet(); else closeDrawer(); } });
   $("b-slink").onclick = function () { showKeyLink($("s-link")); };
@@ -2116,7 +2121,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   var GD_SCOPE = "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file";
   var DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
   var CU_API = "https://api.clickup.com/api/v2";
-  var LIB_HEAD = "Base de conhecimento do Harllen (use quando relevante e cite o título da fonte entre colchetes; se não estiver aqui, diga que não encontrou na Biblioteca):";
+  function libHead() { return "Base de conhecimento do " + myName() + " (use quando relevante e cite o título da fonte entre colchetes; se não estiver aqui, diga que não encontrou na Biblioteca):"; }
   var SRC_LABEL = { file: "Arquivo", paste: "Texto colado", drive: "Drive", clickup: "ClickUp", chat: "Conversa" };
   var SRC_ICON = { file: "📄", paste: "📝", drive: "🟢", clickup: "✅" };
   S.libOn = S.libOn !== false;
@@ -2269,7 +2274,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
         if (titles.indexOf(h.it.title) < 0) titles.push(h.it.title);
       });
       if (!parts.length) return null;
-      return { text: LIB_HEAD + "\n" + parts.join("\n\n"), titles: titles };
+      return { text: libHead() + "\n" + parts.join("\n\n"), titles: titles };
     } catch (e) { return null; }
   }
 
@@ -2655,7 +2660,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
 
   /* backup (never the key) */
   $("b-exp").onclick = async function () {
-    var data = { app: "HarllenBot", version: 2, exported: new Date().toISOString(), settings: { provider: S.provider, model: S.pm[S.provider], sys: S.sys, mem: S.mem, bots: S.bots, sel: S.sel, libOn: S.libOn, acc: S.acc || "" }, convs: convs };
+    var data = { app: "HarllenBot", version: 2, exported: new Date().toISOString(), settings: { provider: S.provider, model: S.pm[S.provider], sys: S.sys, mem: S.mem, bots: S.bots, sel: S.sel, libOn: S.libOn, acc: S.acc || "", nome: S.nome || "", sugg: Array.isArray(S.sugg) ? S.sugg : [] }, convs: convs };
     if ($("s-bkplib").checked) { try { await LIB.ready; } catch (e) {} data.library = LIB.docs.map(function (d) { return { id: d.id, title: d.title, source: d.source, sourceId: d.sourceId || "", text: d.text, size: d.size || 0, mime: d.mime || "", meta: d.meta || null, remoteMod: d.remoteMod || "", updated: d.updated }; }); }
     var a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: "application/json" }));
@@ -2668,7 +2673,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     f.text().then(function (t) {
       var d = JSON.parse(t);
       if (!d || !Array.isArray(d.convs)) throw 0;
-      if (d.settings) { if (PROVIDERS[d.settings.provider]) S.provider = d.settings.provider; if (typeof d.settings.model === "string" && d.settings.model) { S.pm[S.provider] = d.settings.model; if (S.provider === "google") S.model = d.settings.model; } if (d.settings.sys) S.sys = d.settings.sys; if (Array.isArray(d.settings.mem)) S.mem = d.settings.mem.map(String); if (Array.isArray(d.settings.bots) && d.settings.bots.some(function (b) { return b && b.id === "main"; })) { S.bots = d.settings.bots.filter(function (b) { return b && b.id; }); S.sel = botById(d.settings.sel).id; } if (typeof d.settings.libOn === "boolean") S.libOn = d.settings.libOn; if (typeof d.settings.acc === "string" && d.settings.acc) { S.acc = d.settings.acc; applyAcc(); } }
+      if (d.settings) { if (PROVIDERS[d.settings.provider]) S.provider = d.settings.provider; if (typeof d.settings.model === "string" && d.settings.model) { S.pm[S.provider] = d.settings.model; if (S.provider === "google") S.model = d.settings.model; } if (d.settings.sys) S.sys = d.settings.sys; if (Array.isArray(d.settings.mem)) S.mem = d.settings.mem.map(String); if (Array.isArray(d.settings.bots) && d.settings.bots.some(function (b) { return b && b.id === "main"; })) { S.bots = d.settings.bots.filter(function (b) { return b && b.id; }); S.sel = botById(d.settings.sel).id; } if (typeof d.settings.libOn === "boolean") S.libOn = d.settings.libOn; if (typeof d.settings.acc === "string" && d.settings.acc) { S.acc = d.settings.acc; applyAcc(); } if (typeof d.settings.nome === "string") S.nome = d.settings.nome; if (Array.isArray(d.settings.sugg)) S.sugg = d.settings.sugg.map(String); }
       var libP = Array.isArray(d.library) && d.library.length ? libImportBackup(d.library) : Promise.resolve(0);
       var ids = convs.map(function (c) { return c.id; });
       d.convs.forEach(function (c) { var sc = sanitizeConv(c); if (sc && ids.indexOf(sc.id) < 0) convs.push(sc); });
@@ -2694,7 +2699,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   }
   function syncPayload() {
     var d = { app: "HarllenBotSync", v: 1, updatedAt: Date.now(), device: S.devId,
-      settings: { provider: S.provider, pm: S.pm, cust: S.cust, sys: S.sys, mem: S.mem, bots: S.bots, sel: S.sel, libOn: S.libOn, acc: S.acc || "", gdriveClientId: S.gdriveClientId, editTs: S.editTs || 0 },
+      settings: { provider: S.provider, pm: S.pm, cust: S.cust, sys: S.sys, mem: S.mem, bots: S.bots, sel: S.sel, libOn: S.libOn, acc: S.acc || "", nome: S.nome || "", sugg: Array.isArray(S.sugg) ? S.sugg : [], gdriveClientId: S.gdriveClientId, editTs: S.editTs || 0 },
       convs: convs, cur: curId, tomb: TOMB,
       library: LIB.docs.map(function (x) { return { id: x.id, title: x.title, source: x.source, sourceId: x.sourceId || "", text: x.text, size: x.size || 0, mime: x.mime || "", meta: x.meta || null, remoteMod: x.remoteMod || "", updated: x.updated }; }) };
     if (S.syncKeys) d.secrets = { key: KEY, keys: S.keys, clickupToken: S.clickupToken };
@@ -2762,6 +2767,8 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
       if (Array.isArray(s.bots) && s.bots.some(function (b) { return b && b.id === "main"; })) { S.bots = s.bots.filter(function (b) { return b && b.id; }); S.sel = botById(s.sel).id; }
       if (typeof s.libOn === "boolean") S.libOn = s.libOn;
       if (typeof s.acc === "string" && s.acc) { S.acc = s.acc; applyAcc(); }
+      if (typeof s.nome === "string") S.nome = s.nome;
+      if (Array.isArray(s.sugg)) S.sugg = s.sugg.map(String);
       if (typeof s.gdriveClientId === "string" && s.gdriveClientId) S.gdriveClientId = s.gdriveClientId;
       S.model = S.pm[S.provider];
       if (r.secrets && S.syncKeys) {
@@ -2926,7 +2933,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     gdSilent().then(function (ok) { if (ok) syncNow(false); });
   });
   /* auto-atualização: se sair versão nova, recarrega sozinho (uma vez) */
-  var APP_V = "20261008-33";
+  var APP_V = "20261008-34";
   setTimeout(function () {
     fetch(location.pathname, { cache: "no-store" }).then(function (r) { return r.text(); }).then(function (t) {
       var m = t.match(/var APP_V = "([^"]+)"/);
