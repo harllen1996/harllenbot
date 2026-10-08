@@ -2321,7 +2321,10 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   }
   async function syncNow(manual) {
     if (syncBusy) { if (manual) toast("Sincronização já em andamento…"); return; }
-    if (!(S.gdriveClientId || "").trim()) { if (manual) toast("Cole o Client ID do Google (Biblioteca › Google Drive) primeiro."); return; }
+    if (!(S.gdriveClientId || "").trim()) {
+      if (manual) { toast("Falta o Client ID do Google — abri a Biblioteca no campo certo."); closeSet(); openLib(); setTimeout(function () { var d = document.querySelector("#lib details.x-help"); if (d) d.open = true; var f = $("l-gcid"); if (f) f.focus(); }, 400); }
+      return;
+    }
     syncBusy = true;
     try {
       if (manual) { syncInfo("Conectando ao Google…"); await gdToken(); }
