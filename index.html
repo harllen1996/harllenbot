@@ -1003,6 +1003,10 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
       @keyframes hb-dots { 0%, 60%, 100% { transform: translateY(0); opacity: 0.35; } 30% { transform: translateY(-4px); opacity: 1; } }
       .x-bub.x-typing:has(.x-think)::after { content: none; }
 
+      /* conversas fixadas e renomear (menu lateral) */
+      .x-pin.is-on { color: var(--acc-1); background: var(--acc-soft); }
+      .x-renin { flex: 1; min-width: 0; font: var(--type-callout); color: var(--label-1); background: var(--surface-1); border: 1px solid var(--acc-1); border-radius: var(--r-sm); padding: 6px 8px; }
+
       @media (prefers-reduced-motion: reduce) {
         .page.x-app *, .page.x-app *::before, .page.x-app *::after { animation-duration: 0.001s !important; animation-iteration-count: 1 !important; transition-duration: 0.001s !important; }
       }
@@ -1577,9 +1581,27 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   function modelLabel() { var c = (S.cust[S.provider] || "").trim(); return c || MODELS[S.provider][S.pm[S.provider]] || S.pm[S.provider]; }
   function setKey(v) { if (S.provider === "google") { KEY = v; sset("hb_key", v); } else { S.keys[S.provider] = v; saveSettings(); } if ($("s-link")) $("s-link").innerHTML = ""; if ($("s-key")) $("s-key").value = ""; toast("Chave salva"); render(); }
   function renderConvs() {
-    $("convs").innerHTML = convs.map(function (c) {
-      return '<li class="' + (c.id === curId ? "is-cur" : "") + '" data-id="' + c.id + '"><button class="x-open" type="button">' + esc(c.title) + '</button><button class="x-ib x-del" type="button" aria-label="Apagar conversa"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button></li>';
+    var ordered = convs.slice().sort(function (a, b) { return (b.pin ? 1 : 0) - (a.pin ? 1 : 0); });
+    $("convs").innerHTML = ordered.map(function (c) {
+      return '<li class="' + (c.id === curId ? "is-cur" : "") + (c.pin ? " is-pin" : "") + '" data-id="' + c.id + '"><button class="x-open" type="button">' + esc(c.title) + '</button><button class="x-ib x-pin' + (c.pin ? " is-on" : "") + '" type="button" aria-label="' + (c.pin ? "Desafixar conversa" : "Fixar conversa") + '" aria-pressed="' + !!c.pin + '"><svg viewBox="0 0 24 24"><path d="M9.5 3.5h5L13.8 9l3 3.4H7.2l3-3.4z"/><path d="M12 12.4V21"/></svg></button><button class="x-ib x-ren" type="button" aria-label="Renomear conversa"><svg viewBox="0 0 24 24"><path d="M4 20l4.3-1L19.5 7.8a2.05 2.05 0 0 0-2.9-2.9L5.4 16.1z"/><path d="M14.8 5.9l2.9 2.9"/></svg></button><button class="x-ib x-del" type="button" aria-label="Apagar conversa"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button></li>';
     }).join("");
+  }
+  /* Renomear inline na lista: Enter confirma, Esc cancela, sair do campo confirma. */
+  function renameConv(id, li) {
+    var c = convs.find(function (x) { return x.id === id; }); if (!c) return;
+    var open = li.querySelector(".x-open"); if (!open) return;
+    var inp = document.createElement("input");
+    inp.className = "x-renin"; inp.maxLength = 80; inp.value = c.title; inp.setAttribute("aria-label", "Novo título da conversa");
+    open.replaceWith(inp); inp.focus(); inp.select();
+    var done = false;
+    function commit(save) {
+      if (done) return; done = true;
+      var v = inp.value.replace(/\s+/g, " ").trim();
+      if (save && v && v !== c.title) { c.title = v.slice(0, 80); saveConvs(); touchSync(); if (id === curId) { render(); return; } }
+      renderConvs();
+    }
+    inp.addEventListener("keydown", function (ev) { ev.stopPropagation(); if (ev.key === "Enter") { ev.preventDefault(); commit(true); } else if (ev.key === "Escape") { ev.preventDefault(); commit(false); } });
+    inp.addEventListener("blur", function () { commit(true); });
   }
 
   /* API */
@@ -1809,6 +1831,13 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   $("b-new").onclick = newConv; $("b-new2").onclick = newConv;
   $("convs").addEventListener("click", function (e) {
     var li = e.target.closest("li"); if (!li) return; var id = li.dataset.id;
+    if (e.target.closest(".x-renin")) return;
+    if (e.target.closest(".x-pin")) {
+      var cp = convs.find(function (x) { return x.id === id; });
+      if (cp) { cp.pin = cp.pin ? 0 : 1; saveConvs(); touchSync(); renderConvs(); }
+      return;
+    }
+    if (e.target.closest(".x-ren")) { renameConv(id, li); return; }
     if (e.target.closest(".x-del")) {
       if (!confirm("Apagar esta conversa?")) return;
       if (busy && id === curId) busy.abort();
@@ -2811,7 +2840,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     gdSilent().then(function (ok) { if (ok) syncNow(false); });
   });
   /* auto-atualização: se sair versão nova, recarrega sozinho (uma vez) */
-  var APP_V = "20261008-29";
+  var APP_V = "20261008-30";
   setTimeout(function () {
     fetch(location.pathname, { cache: "no-store" }).then(function (r) { return r.text(); }).then(function (t) {
       var m = t.match(/var APP_V = "([^"]+)"/);
