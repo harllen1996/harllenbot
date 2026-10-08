@@ -2194,14 +2194,17 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     catch (e) { prog(e.message); }
   }
   $("b-cuimp").onclick = async function () {
-    S.clickupToken = $("l-cutok").value.trim(); saveSettings();
-    if (!S.clickupToken) { toast("Cole o token pessoal do ClickUp primeiro."); $("l-cutok").focus(); return; }
-    prog("Conectando ao ClickUp…");
-    try { CU.teams = (await cuGet("/team")).teams || []; }
-    catch (e) { prog(e.message); return; }
-    if (!CU.teams.length) { prog("Nenhum workspace encontrado nesse token."); return; }
-    $("l-cuteam").innerHTML = CU.teams.map(function (t) { return '<option value="' + esc(String(t.id)) + '">' + esc(t.name || "Workspace") + "</option>"; }).join("");
-    $("l-cu").hidden = false; cuLoadSpaces();
+    try {
+      S.clickupToken = $("l-cutok").value.trim(); saveSettings();
+      if (!S.clickupToken) { toast("Cole o token pessoal do ClickUp primeiro."); $("l-cutok").focus(); return; }
+      toast("Conectando ao ClickUp…");
+      prog("Conectando ao ClickUp…");
+      try { CU.teams = (await cuGet("/team")).teams || []; } catch (e) { prog(e.message); return; }
+      if (!CU.teams.length) { prog("Nenhum workspace encontrado nesse token."); return; }
+      $("l-cuteam").innerHTML = CU.teams.map(function (t) { return '<option value="' + esc(String(t.id)) + '">' + esc(t.name || "Workspace") + "</option>"; }).join("");
+      $("l-cu").hidden = false; cuLoadSpaces();
+      toast("ClickUp conectado: escolha os espaços abaixo.");
+    } catch (e) { toast("Erro ao conectar no ClickUp: " + (e && e.message ? e.message : "desconhecido")); }
   };
   $("l-cuteam").onchange = cuLoadSpaces;
   $("b-cuclose").onclick = function () { $("l-cu").hidden = true; };
@@ -2456,6 +2459,14 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   touchSync = (function (orig) { return function () { orig(); if (syncWanted() && !syncBarOff && !syncTokenOk() && !syncBusy) syncBar(true); }; })(touchSync);
   document.addEventListener("visibilitychange", function () { if (document.visibilityState === "hidden" && syncDirty && S.syncOn && syncTokenOk() && !syncBusy) syncNow(false); });
   document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible" && S.syncOn && syncTokenOk() && !syncBusy) syncNow(false); });
+  /* auto-atualização: se sair versão nova, recarrega sozinho (uma vez) */
+  var APP_V = "20261008-10";
+  setTimeout(function () {
+    fetch(location.pathname, { cache: "no-store" }).then(function (r) { return r.text(); }).then(function (t) {
+      var m = t.match(/var APP_V = "([^"]+)"/);
+      if (m && m[1] !== APP_V && !sessionStorage.getItem("hb_upd")) { sessionStorage.setItem("hb_upd", "1"); toast("Nova versão do HarllenBot! Atualizando…"); setTimeout(function () { location.reload(); }, 900); }
+    }).catch(function () {});
+  }, 4000);
 
   render();
 })();
