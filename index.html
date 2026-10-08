@@ -755,6 +755,12 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
       textarea.x-in { resize: vertical; min-height: 120px; line-height: 1.45; }
       .x-primary { min-height: var(--tap); padding: 0 18px; border-radius: var(--r-s); border: 0; background: var(--fill-primary); color: var(--text-primary-on); font: var(--type-label); cursor: pointer; }
       .x-primary:disabled { opacity: 0.4; cursor: default; }
+      .x-gbtn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: var(--tap); padding: 8px 18px; border-radius: var(--r-pill); border: 1px solid #dadce0; background: #fff; color: #1f1f1f; font: var(--type-label); cursor: pointer; }
+      .x-gbtn svg { width: 20px; height: 20px; flex: none; }
+      .x-gbtn:hover { box-shadow: 0 1px 3px rgb(0 0 0 / 0.3); }
+      .x-gbtn:disabled { opacity: .55; }
+      .x-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--text-secondary); margin-right: 7px; vertical-align: 1px; }
+      .x-dot.is-on { background: var(--fill-system-green); }
       .x-comp { padding: 8px var(--gutter); padding-bottom: max(8px, env(safe-area-inset-bottom)); border-top: 1px solid var(--stroke-secondary); background: var(--fill-primary-on); }
       .x-comp-in { max-width: 760px; margin: 0 auto; display: flex; align-items: flex-end; gap: 4px; border: 1px solid var(--stroke-primary); border-radius: var(--r-l); padding: 4px; background: var(--fill-primary-on); }
       .x-comp textarea { flex: 1; border: 0; background: none; resize: none; color: var(--text-primary); font: var(--type-body); font-size: 16px; line-height: 1.4; padding: 11px 6px; max-height: 160px; min-height: var(--tap); outline: none; }
@@ -932,7 +938,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
             <p class="fineprint">Guarda conversas, memória, bots, configurações e a Biblioteca num arquivo (<b>harllenbot-sync.json</b>) no <b>seu</b> Google Drive, para abrir o HarllenBot em qualquer aparelho com tudo igual. Usa o mesmo Client ID do Drive da Biblioteca. Ao abrir outro aparelho, conecte o Drive e toque em sincronizar: as conversas e os documentos se juntam (nada se perde); nas configurações, vale a versão mais recente.</p>
             <label class="x-check"><input type="checkbox" id="s-syncon" /><span>Sincronizar automaticamente neste aparelho</span></label>
             <label class="x-check"><input type="checkbox" id="s-synckeys" /><span>Incluir chaves e tokens no arquivo de sincronização (menos seguro; sem isso, cada aparelho pede as chaves uma vez)</span></label>
-            <div class="links"><button type="button" class="btn" id="b-sync">Conectar e sincronizar agora</button></div>
+            <div class="links"><button type="button" class="x-gbtn" id="b-sync"><svg viewBox="0 0 87.3 78" aria-hidden="true"><path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/><path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/><path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/><path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/></svg><span>Conectar com Google Drive e sincronizar</span></button></div>
             <p class="fineprint" id="s-syncinfo">Nunca sincronizado neste aparelho.</p>
           </div>
           <div class="x-group">
@@ -973,7 +979,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
           </div>
           <div class="x-group">
             <h2>Google Drive</h2>
-            <label class="x-field">Google OAuth Client ID<input class="x-in" id="l-gcid" placeholder="123456-abc.apps.googleusercontent.com" autocomplete="off" spellcheck="false" /><small>Fica só neste aparelho. O acesso ao Drive é só leitura e o login dura até fechar a página.</small></label>
+            <label class="x-field">Google OAuth Client ID<input class="x-in" id="l-gcid" placeholder="123456-abc.apps.googleusercontent.com" autocomplete="off" spellcheck="false" /><small>Fica só neste aparelho. O app lê seus arquivos e grava apenas o arquivo de sincronização dele; o login do Google dura cerca de 1 hora.</small></label>
             <details class="x-help">
               <summary>Como criar o Client ID (uma vez só)</summary>
               <ol>
@@ -985,7 +991,8 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
                 <li>Copie o <b>ID do cliente</b> (termina em .apps.googleusercontent.com) e cole no campo acima.</li>
               </ol>
             </details>
-            <div class="links"><button type="button" class="btn" id="b-gconn">Conectar Google Drive</button><button type="button" class="btn" id="b-gsync">Atualizar do Drive</button></div>
+            <div class="links"><button type="button" class="x-gbtn" id="b-gconn"><svg viewBox="0 0 87.3 78" aria-hidden="true"><path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/><path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/><path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/><path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/></svg><span>Conectar com Google Drive</span></button><button type="button" class="btn" id="b-gsync">Atualizar do Drive</button><button type="button" class="btn" id="b-gdisc" hidden>Desconectar</button></div>
+            <p class="fineprint"><i class="x-dot" id="l-gdot"></i><span id="l-gstatetx">Não conectado ao Google Drive</span></p>
             <div class="x-group x-bed" id="l-gd" hidden>
               <div class="x-row"><input class="x-in" type="search" id="l-gq" placeholder="Buscar arquivos pelo nome" autocomplete="off" aria-label="Buscar no Drive" /><button type="button" class="btn" id="b-gsearch">Buscar</button></div>
               <ul class="x-mem x-flist" id="l-glist"></ul>
@@ -2345,6 +2352,7 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
     if ($("s-syncon")) $("s-syncon").checked = !!S.syncOn;
     if ($("s-synckeys")) $("s-synckeys").checked = !!S.syncKeys;
     if ($("s-syncinfo")) $("s-syncinfo").textContent = S.syncLast || "Nunca sincronizado neste aparelho.";
+    renderGDState();
   }
   openSet = (function (orig) { return function () { var r = orig(); syncUI(); return r; }; })(openSet);
   $("b-set").onclick = function () { openSet(); };
@@ -2352,6 +2360,23 @@ tr.is-highlight > :last-child { box-shadow: 12px 0 var(--fill-tertiary); }
   $("b-sync").onclick = function () { syncNow(true); };
   $("s-syncon").onchange = function () { S.syncOn = this.checked; saveSettings(); toast(S.syncOn ? "Sincronização automática ligada" : "Sincronização automática desligada"); };
   $("s-synckeys").onchange = function () { S.syncKeys = this.checked; saveSettings(); };
+  /* botão Conectar com Google Drive: estado visível da conexão */
+  function renderGDState() {
+    var on = syncTokenOk();
+    var tx = $("l-gstatetx"); if (tx) tx.textContent = on ? "Conectado ao Google Drive (sessão ativa neste aparelho)" : "Não conectado ao Google Drive";
+    var dot = $("l-gdot"); if (dot) dot.className = "x-dot" + (on ? " is-on" : "");
+    var dc = $("b-gdisc"); if (dc) dc.hidden = !on;
+    var bc = $("b-gconn"); if (bc) { var sp = bc.querySelector("span"); if (sp) sp.textContent = on ? "Reconectar com Google Drive" : "Conectar com Google Drive"; }
+  }
+  gdToken = (function (orig) { return function () { return orig().then(function (t) { renderGDState(); return t; }); }; })(gdToken);
+  openLib = (function (orig) { return function () { var r = orig(); renderGDState(); return r; }; })(openLib);
+  $("b-lib").onclick = function () { openLib(); };
+  $("b-lib2").onclick = function () { openLib(); };
+  $("b-gdisc").onclick = function () {
+    var tk = GD.token; GD.token = ""; GD.exp = 0;
+    try { if (tk && window.google && google.accounts && google.accounts.oauth2 && google.accounts.oauth2.revoke) google.accounts.oauth2.revoke(tk, function () {}); } catch (e) {}
+    renderGDState(); toast("Google Drive desconectado neste aparelho.");
+  };
 
   render();
 })();
